@@ -21,11 +21,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/pos/layout.js"
     ],
-    "/pos/configuracion/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/pos/configuracion/page.js"
-    ],
     "/pos/productos/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -40,6 +35,16 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/pos/page.js"
+    ],
+    "/pos/clientes/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/clientes/page.js"
+    ],
+    "/pos/deudores/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/deudores/page.js"
     ]
   }
 }

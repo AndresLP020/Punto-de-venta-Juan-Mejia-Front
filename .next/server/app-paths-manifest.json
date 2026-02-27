@@ -1,8 +1,9 @@
 {
   "/page": "app/page.js",
   "/pos/dashboard/page": "app/pos/dashboard/page.js",
-  "/pos/configuracion/page": "app/pos/configuracion/page.js",
+  "/pos/productos/page": "app/pos/productos/page.js",
   "/pos/proveedores/page": "app/pos/proveedores/page.js",
+  "/pos/clientes/page": "app/pos/clientes/page.js",
   "/pos/page": "app/pos/page.js",
-  "/pos/productos/page": "app/pos/productos/page.js"
+  "/pos/deudores/page": "app/pos/deudores/page.js"
 }
