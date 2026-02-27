@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, type Devolucion, type PerdidaItem } from '@/lib/api';
+import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, type Devolucion, type PerdidaItem, type Producto } from '@/lib/api';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
 
 type Venta = {
@@ -178,7 +178,7 @@ export default function VentasPage() {
     try {
       const listado = await getProductos();
       setProductos(listado);
-      const items: ItemDevolucionEdit[] = listado.map((p) => ({
+      const items: ItemDevolucionEdit[] = listado.map((p: Producto) => ({
         productoId: p.id,
         nombre: p.nombre,
         cantidadVendida: typeof p.stock === 'number' ? p.stock : 0,
