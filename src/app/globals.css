@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: #0f172a;
+  --background: #f8fafc;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(34 197 94);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(34 197 94 / 0.2);
+  color: inherit;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(71 85 105) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(71 85 105);
+    border-radius: 3px;
+  }
+}
+
+/* Modo claro POS */
+.theme-light .pos-layout {
+  background: #f8fafc !important;
+}
+.theme-light .pos-layout aside {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+}
+.theme-light .pos-layout main {
+  background: #f1f5f9 !important;
+}
+.theme-light .pos-layout .pos-main-inner {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+}
+.theme-light .pos-layout .text-white {
+  color: #0f172a !important;
+}
+.theme-light .pos-layout .text-slate-400 {
+  color: #475569 !important;
+}
+.theme-light .pos-layout .text-slate-300 {
+  color: #334155 !important;
+}
+.theme-light .pos-layout .text-slate-500 {
+  color: #64748b !important;
+}
+.theme-light .pos-layout .bg-slate-800\/80,
+.theme-light .pos-layout .bg-slate-800 {
+  background-color: rgb(226 232 240) !important;
+}
+.theme-light .pos-layout .bg-slate-900 {
+  background-color: rgb(203 213 225) !important;
+}
+.theme-light .pos-layout .border-slate-700\/80,
+.theme-light .pos-layout .border-slate-800\/80,
+.theme-light .pos-layout .border-slate-700,
+.theme-light .pos-layout .border-slate-800 {
+  border-color: rgb(203 213 225) !important;
+}
+.theme-light .pos-layout a:hover,
+.theme-light .pos-layout button:hover {
+  color: inherit;
+}
