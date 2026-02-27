@@ -159,7 +159,7 @@ export default function DeudasPage() {
     try {
       const list = await getMetasAhorro();
       setMetas(list);
-      const regs = await Promise.all(list.map((m) => getRegistrosAhorro(m.id)));
+      const regs = await Promise.all(list.map((m: MetaAhorro) => getRegistrosAhorro(m.id)));
       setRegistrosByMetaId(
         list.reduce<Record<number, RegistroAhorroDia[]>>((acc, m, i) => {
           acc[m.id] = regs[i] ?? [];
