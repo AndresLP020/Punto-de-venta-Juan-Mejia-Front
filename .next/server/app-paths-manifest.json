@@ -1,8 +1,7 @@
 {
   "/page": "app/page.js",
-  "/pos/lienzo-charro/page": "app/pos/lienzo-charro/page.js",
-  "/pos/page": "app/pos/page.js",
-  "/pos/gastos-admin/page": "app/pos/gastos-admin/page.js",
   "/pos/dashboard/page": "app/pos/dashboard/page.js",
+  "/pos/lienzo-charro/page": "app/pos/lienzo-charro/page.js",
+  "/pos/gastos-admin/page": "app/pos/gastos-admin/page.js",
   "/pos/reportes/page": "app/pos/reportes/page.js"
 }
