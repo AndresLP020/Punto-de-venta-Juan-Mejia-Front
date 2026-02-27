@@ -21,10 +21,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/pos/layout.js"
     ],
-    "/pos/productos/page": [
+    "/pos/configuracion/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/pos/productos/page.js"
+      "static/chunks/app/pos/configuracion/page.js"
     ],
     "/pos/proveedores/page": [
       "static/chunks/webpack.js",
@@ -41,10 +41,45 @@
       "static/chunks/main-app.js",
       "static/chunks/app/pos/clientes/page.js"
     ],
+    "/pos/productos/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/productos/page.js"
+    ],
+    "/pos/lienzo-charro/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/lienzo-charro/page.js"
+    ],
+    "/pos/reportes/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/reportes/page.js"
+    ],
     "/pos/deudores/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/pos/deudores/page.js"
+    ],
+    "/pos/gastos-admin/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/gastos-admin/page.js"
+    ],
+    "/pos/deudas/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/deudas/page.js"
+    ],
+    "/pos/sueldos/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/sueldos/page.js"
+    ],
+    "/pos/ventas/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/pos/ventas/page.js"
     ]
   }
 }

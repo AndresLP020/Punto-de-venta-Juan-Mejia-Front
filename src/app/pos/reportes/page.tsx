@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getVentas, getProductos, getGastosAdmin, getNominas, type Producto } from '@/lib/api';
+import { getVentas, getProductos, getGastosAdmin, getNominas, getMovimientosLienzo, type Producto } from '@/lib/api';
 import { formatearMoneda } from '@/lib/utils';
 
 type Venta = {
@@ -30,6 +30,7 @@ export default function ReportesPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
   const [nominas, setNominas] = useState<{ fecha: string; total: number }[]>([]);
+  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('año');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -39,16 +40,24 @@ export default function ReportesPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [v, p, g, n] = await Promise.all([getVentas(), getProductos(), getGastosAdmin(), getNominas()]);
+      const [v, p, g, n, lienzo] = await Promise.all([
+        getVentas(),
+        getProductos(),
+        getGastosAdmin(),
+        getNominas(),
+        getMovimientosLienzo().catch(() => []),
+      ]);
       setVentas(v);
       setProductos(p);
       setGastosAdmin(g);
       setNominas(n);
+      setMovimientosLienzo(lienzo);
     } catch {
       setVentas([]);
       setProductos([]);
       setGastosAdmin([]);
       setNominas([]);
+      setMovimientosLienzo([]);
     } finally {
       setLoading(false);
     }
@@ -109,10 +118,18 @@ export default function ReportesPage() {
   const calcularMetricas = () => {
     // Total de ventas (todas las transacciones del período)
     const totalVentas = ventasFiltradas.length;
-    
-    // Ingresos totales = suma de lo que realmente se pagó (solo ventas con pago > 0)
+
+    // Ingresos totales = ventas pagadas + ingresos Lienzo Charro del período
     const ventasConPago = ventasFiltradas.filter((v) => (v.pagado || v.total || 0) > 0);
-    const ingresosTotales = ventasConPago.reduce((sum, v) => sum + (v.pagado || v.total || 0), 0);
+    const ingresosVentas = ventasConPago.reduce((sum, v) => sum + (v.pagado || v.total || 0), 0);
+    const ingresosLienzoPeriodo = movimientosLienzo
+      .filter((m) => m.tipo === 'ingreso')
+      .filter((m) => {
+        const d = new Date(m.fecha);
+        return d >= inicioPeriodo && d <= finPeriodo;
+      })
+      .reduce((s, m) => s + m.monto, 0);
+    const ingresosTotales = ingresosVentas + ingresosLienzoPeriodo;
     
     // Costo de productos vendidos: usar costo guardado en ítem (al registrar venta) o costo actual del producto
     const costoProductos = ventasConPago.reduce((sum, venta) => {

@@ -7,6 +7,7 @@ import {
   getProductos,
   getNominas,
   getGastosAdmin,
+  getMovimientosLienzo,
   getAdelantos,
   postEmpleado,
   putEmpleado,
@@ -51,6 +52,7 @@ export default function SueldosPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nominas, setNominas] = useState<{ id: number; fecha: string; total: number; items: { empleadoId: number; monto: number; semana?: string; adelantoDescontado?: number }[] }[]>([]);
   const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
+  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
   const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalTrabajador, setModalTrabajador] = useState(false);
@@ -70,12 +72,13 @@ export default function SueldosPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [e, v, p, n, g, a] = await Promise.all([
+      const [e, v, p, n, g, lienzo, a] = await Promise.all([
         getEmpleados(),
         getVentas(),
         getProductos(),
         getNominas(),
         getGastosAdmin(),
+        getMovimientosLienzo().catch(() => []),
         getAdelantos(),
       ]);
       setEmpleados(e);
@@ -83,6 +86,7 @@ export default function SueldosPage() {
       setProductos(p);
       setNominas(n);
       setGastosAdmin(g);
+      setMovimientosLienzo(lienzo);
       setAdelantos(a);
     } catch {
       setEmpleados([]);
@@ -90,6 +94,7 @@ export default function SueldosPage() {
       setProductos([]);
       setNominas([]);
       setGastosAdmin([]);
+      setMovimientosLienzo([]);
       setAdelantos([]);
     } finally {
       setLoading(false);
@@ -111,6 +116,14 @@ export default function SueldosPage() {
     (s, v) => s + (v.pagado ?? v.total ?? 0),
     0
   );
+  const ingresosLienzoSemana = movimientosLienzo
+    .filter((m) => m.tipo === 'ingreso')
+    .filter((m) => {
+      const d = new Date(m.fecha);
+      return d >= inicioSemana && d <= ahora;
+    })
+    .reduce((s, m) => s + m.monto, 0);
+  const ingresosTotalesSemanales = ingresosSemanales + ingresosLienzoSemana;
 
   const costosSemanales = ventasSemanales.reduce((sum, venta) => {
     const porcentaje = venta.total > 0 ? (venta.pagado ?? venta.total) / venta.total : 1;
@@ -171,10 +184,10 @@ export default function SueldosPage() {
     return map;
   })();
 
-  // Misma fórmula que Gastos Admin y Reportes: Ingresos − Costo ventas − Gastos Admin − Nóminas
-  const gananciaNetaSemanal = ingresosSemanales - costosSemanales - totalGastosAdminSemana - totalNominasPagadasSemana;
+  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas + Lienzo Charro) − Costo ventas − Gastos Admin − Nóminas
+  const gananciaNetaSemanal = ingresosTotalesSemanales - costosSemanales - totalGastosAdminSemana - totalNominasPagadasSemana;
   const efectivoDisponible = gananciaNetaSemanal;
-  const efectivoBajo = efectivoDisponible < 0 || (ingresosSemanales === 0 && (empleados.length > 0 || gastosAdmin.length > 0));
+  const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesSemanales === 0 && (empleados.length > 0 || gastosAdmin.length > 0));
 
   const abrirModalTrabajador = (emp?: Empleado) => {
     if (emp) {
@@ -317,7 +330,7 @@ export default function SueldosPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3 bg-slate-800/60 border-b border-slate-700/80">
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-slate-400 text-sm font-medium">
-            Empleados: {empleados.length} | Ingresos: {fm(ingresosSemanales)} · Costo ventas: {fm(costosSemanales)} · Gastos Admin: {fm(totalGastosAdminSemana)} · Nóminas: {fm(totalNominasPagadasSemana)} · Ganancia neta: {fm(gananciaNetaSemanal)}
+            Empleados: {empleados.length} | Ingresos: {fm(ingresosTotalesSemanales)} · Costo ventas: {fm(costosSemanales)} · Gastos Admin: {fm(totalGastosAdminSemana)} · Nóminas: {fm(totalNominasPagadasSemana)} · Ganancia neta: {fm(gananciaNetaSemanal)}
           </span>
           {empleados.length === 0 && (
             <span className="flex items-center gap-1.5 text-amber-400 text-sm">
@@ -363,7 +376,7 @@ export default function SueldosPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
           <div className="rounded-2xl bg-slate-800/80 border border-emerald-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Ingresos Semanales</p>
-            <p className="text-2xl font-bold text-emerald-400 mt-1 tabular-nums">{fm(ingresosSemanales)}</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1 tabular-nums">{fm(ingresosTotalesSemanales)}</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-slate-600/80 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Total Sueldos</p>

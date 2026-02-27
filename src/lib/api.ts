@@ -173,6 +173,94 @@ export async function deleteProveedor(id: number) {
   if (!res.ok) throw new Error('Error al eliminar proveedor');
 }
 
+// Cuentas con proveedores (deudas y pagos)
+export type CuentaProveedorResumen = {
+  proveedorId: number;
+  proveedorNombre: string;
+  totalDeuda: number;
+  totalPagos: number;
+  saldoPendiente: number;
+};
+
+export type MovimientoCuentaProveedor = {
+  id: number;
+  proveedorId: number;
+  proveedorNombre: string;
+  tipo: 'deuda' | 'pago';
+  fecha: string;
+  descripcion: string;
+  monto: number;
+};
+
+export async function getCuentasProveedoresResumen(): Promise<CuentaProveedorResumen[]> {
+  const res = await fetch(`${BASE}/api/cuentas-proveedores`);
+  if (!res.ok) throw new Error('Error al cargar cuentas de proveedores');
+  return res.json();
+}
+
+export async function getMovimientosProveedor(proveedorId: number): Promise<MovimientoCuentaProveedor[]> {
+  const res = await fetch(`${BASE}/api/cuentas-proveedores/${proveedorId}`);
+  if (!res.ok) throw new Error('Error al cargar movimientos del proveedor');
+  return res.json();
+}
+
+export async function postMovimientoProveedor(body: {
+  proveedorId: number;
+  tipo: 'deuda' | 'pago';
+  monto: number;
+  descripcion?: string;
+  fecha?: string;
+}): Promise<MovimientoCuentaProveedor> {
+  const res = await fetch(`${BASE}/api/cuentas-proveedores`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al registrar movimiento con proveedor');
+  }
+  return res.json();
+}
+
+// Lienzo Charro: ingresos (renta caballos) y gastos (mantención)
+export type MovimientoLienzo = {
+  id: number;
+  fecha: string;
+  tipo: 'ingreso' | 'gasto';
+  descripcion: string;
+  monto: number;
+};
+
+export async function getMovimientosLienzo(): Promise<MovimientoLienzo[]> {
+  const res = await fetch(`${BASE}/api/lienzo-charro`);
+  if (!res.ok) throw new Error('Error al cargar movimientos Lienzo Charro');
+  return res.json();
+}
+
+export async function postMovimientoLienzo(body: {
+  fecha?: string;
+  tipo: 'ingreso' | 'gasto';
+  descripcion?: string;
+  monto: number;
+}): Promise<MovimientoLienzo> {
+  const res = await fetch(`${BASE}/api/lienzo-charro`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al registrar movimiento');
+  }
+  return res.json();
+}
+
+export async function deleteMovimientoLienzo(id: number): Promise<void> {
+  const res = await fetch(`${BASE}/api/lienzo-charro/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Error al eliminar movimiento');
+}
+
 export async function postProducto(body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) {
   const res = await fetch(`${BASE}/api/productos`, {
     method: 'POST',
@@ -242,6 +330,8 @@ export const CATEGORIAS_GASTOS = [
   'Entretenimiento',
   'Servicios básicos de casa',
   'Compras familiares',
+  'seguros, Hacienda (SAT)',
+  'Lienzo Charro',
   'Gastos de la empresa',
 ] as const;
 
