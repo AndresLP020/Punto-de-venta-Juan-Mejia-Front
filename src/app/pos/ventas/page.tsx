@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, type Devolucion, type PerdidaItem, type Producto } from '@/lib/api';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
@@ -20,6 +20,14 @@ type VistaVentas = 'ventas' | 'devoluciones' | 'perdidas';
 type ItemDevolucionEdit = { productoId: number; nombre: string; cantidadVendida: number; cantidadDevolver: number; precio: number; tipo: 'revendible' | 'perdida' };
 
 export default function VentasPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">Cargando…</div>}>
+      <VentasPageContent />
+    </Suspense>
+  );
+}
+
+function VentasPageContent() {
   const searchParams = useSearchParams();
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [ventasFiltradas, setVentasFiltradas] = useState<Venta[]>([]);
