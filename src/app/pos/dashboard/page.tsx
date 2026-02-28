@@ -131,48 +131,48 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-full text-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Dashboard</h1>
-          <p className="text-slate-400 text-sm mt-0.5 capitalize">{hoy()}</p>
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-3 sm:px-6 py-3 sm:py-4">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Dashboard</h1>
+          <p className="text-slate-400 text-xs sm:text-sm mt-0.5 capitalize truncate">{hoy()}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <button
             type="button"
             onClick={() => { setModalAdmin(true); setAdminError(''); setAdminPassword(''); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-400 hover:bg-slate-700/50 transition opacity-70 hover:opacity-100"
+            className="p-2.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-400 hover:bg-slate-700/50 transition opacity-70 hover:opacity-100 touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
             title="Modo administrador"
             aria-label="Modo administrador"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </button>
           <button
             onClick={cargarDatos}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-700/80 text-sm font-medium transition disabled:opacity-50"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-700/80 text-xs sm:text-sm font-medium transition disabled:opacity-50 touch-manipulation min-h-[44px]"
             title="Recargar datos"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Actualizar
+            <span className="hidden sm:inline">Actualizar</span>
           </button>
           <Link
             href="/pos/ventas"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 transition"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-medium shadow-lg shadow-emerald-500/20 transition touch-manipulation min-h-[44px]"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            Historial
+            <span className="hidden sm:inline">Historial</span>
           </Link>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-3 sm:p-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />

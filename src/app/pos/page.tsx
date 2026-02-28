@@ -404,39 +404,39 @@ export default function POSPage() {
       )}
 
       {/* Header con estadísticas */}
-      <div className="px-6 py-3 border-b border-slate-700 bg-slate-800/50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white">Nueva Venta</h1>
-            <p className="text-sm text-slate-400">Sistema de punto de venta</p>
+      <div className="px-3 sm:px-6 py-3 border-b border-slate-700 bg-slate-800/50">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-white truncate">Nueva Venta</h1>
+            <p className="text-xs sm:text-sm text-slate-400">Sistema de punto de venta</p>
           </div>
           {carrito.length > 0 && (
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
               <div className="text-right">
-                <p className="text-slate-400">Items en carrito</p>
-                <p className="text-lg font-bold text-white">{estadisticasVenta.totalItems.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+                <p className="text-slate-400">Items</p>
+                <p className="font-bold text-white tabular-nums">{estadisticasVenta.totalItems.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
               </div>
               <div className="text-right">
                 <p className="text-slate-400">Total</p>
-                <p className="text-lg font-bold text-green-400">${formatearMoneda(totalCarrito)}</p>
+                <p className="font-bold text-green-400 tabular-nums">${formatearMoneda(totalCarrito)}</p>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
         {/* Columna central */}
-        <div className="flex-1 flex flex-col p-6 space-y-6 overflow-auto">
+        <div className="flex-1 flex flex-col p-3 sm:p-6 space-y-4 sm:space-y-6 overflow-auto min-h-0">
           {/* Escáner de código de barras */}
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
-            <div className="flex items-center gap-2 mb-4">
-              <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-slate-800/50 rounded-xl p-4 sm:p-5 border border-slate-700">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
               </svg>
-              <h2 className="text-xl font-semibold text-white">Escáner de Código de Barras</h2>
+              <h2 className="text-base sm:text-xl font-semibold text-white">Escáner de Código de Barras</h2>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <input
                 ref={codigoInputRef}
                 type="text"
@@ -451,12 +451,12 @@ export default function POSPage() {
                   }
                 }}
                 placeholder="Escanea o ingresa el código"
-                className="flex-1 px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 text-lg"
+                className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-lg"
                 autoFocus
               />
               <button
                 onClick={() => buscarPorCodigo(codigoBarras)}
-                className="px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium transition"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium transition touch-manipulation min-h-[44px]"
               >
                 Buscar
               </button>
@@ -464,19 +464,19 @@ export default function POSPage() {
           </div>
 
           {/* Buscar productos */}
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
-            <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-slate-800/50 rounded-xl p-4 sm:p-5 border border-slate-700">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <h2 className="text-xl font-semibold text-white">Buscar Productos</h2>
+              <h2 className="text-base sm:text-xl font-semibold text-white">Buscar Productos</h2>
             </div>
             <input
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre, código o descripción..."
-              className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Buscar por nombre o código..."
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
             />
 
             {/* Resultado de búsqueda */}
@@ -498,7 +498,7 @@ export default function POSPage() {
                 <button
                   onClick={() => agregarAlCarrito(productoEncontrado)}
                   disabled={productoEncontrado.stock <= 0 || (typeof productoEncontrado.stock === 'number' && productoEncontrado.stock < (productoEncontrado.esGranel ? 0.01 : 1))}
-                  className="w-full py-2.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition"
+                  className="w-full py-3 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition touch-manipulation min-h-[44px]"
                 >
                   {productoEncontrado.esGranel ? 'Vender por peso (kg)' : 'Agregar al carrito'}
                 </button>
@@ -509,14 +509,14 @@ export default function POSPage() {
           {/* Categorías */}
           {categorias.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Categorías</h3>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-2 sm:mb-3">Categorías</h3>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setCategoriaFiltro('')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition touch-manipulation min-h-[40px] ${
                     !categoriaFiltro
                       ? 'bg-green-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 active:bg-slate-500'
                   }`}
                 >
                   Todas
@@ -525,10 +525,10 @@ export default function POSPage() {
                   <button
                     key={c}
                     onClick={() => setCategoriaFiltro(c)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition touch-manipulation min-h-[40px] ${
                       categoriaFiltro === c
                         ? 'bg-green-500 text-white'
-                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600 active:bg-slate-500'
                     }`}
                   >
                     {c}
@@ -551,13 +551,13 @@ export default function POSPage() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                   {productosDisponibles.slice(0, 12).map((p) => (
                     <button
                       key={p.id}
                       onClick={() => agregarAlCarrito(p)}
                       disabled={p.stock <= 0 || (p.esGranel && p.stock < 0.01)}
-                      className="text-left p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-green-500/50 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="text-left p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-green-500/50 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition touch-manipulation min-h-[72px] sm:min-h-0 active:scale-[0.98]"
                     >
                       <div className="text-xs font-medium text-green-400 mb-1 truncate">{p.categoria}</div>
                       <div className="font-medium text-white text-sm mb-1 truncate">{p.nombre}</div>
@@ -574,19 +574,19 @@ export default function POSPage() {
         </div>
 
         {/* Panel lateral derecho */}
-        <div className="w-96 min-h-0 border-l border-slate-700 bg-slate-800 flex flex-col">
+        <div className="w-full md:w-96 min-h-0 border-t md:border-t-0 md:border-l border-slate-700 bg-slate-800 flex flex-col flex-shrink-0">
           {/* Botón Devoluciones */}
-          <div className="p-4 border-b border-slate-700">
+          <div className="p-3 sm:p-4 border-b border-slate-700">
             <Link
               href="/pos/ventas?vista=devoluciones"
-              className="block w-full py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition text-center"
+              className="flex w-full items-center justify-center py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition text-center touch-manipulation min-h-[44px]"
             >
               Devoluciones
             </Link>
           </div>
 
           {/* Selector de Cliente */}
-          <div className="p-4 border-b border-slate-700">
+          <div className="p-3 sm:p-4 border-b border-slate-700">
             <label className="block text-sm font-medium text-slate-300 mb-2">Cliente</label>
             <select
               value={clienteSeleccionado?.id || ''}
@@ -617,7 +617,7 @@ export default function POSPage() {
 
           {/* Venta Actual */}
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 border-b border-slate-700">
+            <div className="p-3 sm:p-4 border-b border-slate-700">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white">Venta Actual</h2>
                 {carrito.length > 0 && (
@@ -638,7 +638,7 @@ export default function POSPage() {
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                <div className="flex-1 min-h-[200px] overflow-y-auto overflow-x-hidden p-4 space-y-3">
+                <div className="flex-1 min-h-[200px] overflow-y-auto overflow-x-hidden p-3 sm:p-4 space-y-3">
                   {carrito.map((item, idx) => (
                     <div key={`${item.producto.id}-${idx}`} className="p-3 rounded-lg bg-slate-700 border border-slate-600">
                       <div className="flex items-start justify-between mb-2">
@@ -705,7 +705,7 @@ export default function POSPage() {
                   ))}
                 </div>
 
-                <div className="flex-shrink-0 p-4 border-t border-slate-700 space-y-3 bg-slate-900/30">
+                <div className="flex-shrink-0 p-3 sm:p-4 border-t border-slate-700 space-y-3 bg-slate-900/30">
                   {/* Resumen */}
                   <div className="space-y-2 pb-3 border-b border-slate-700">
                     <div className="flex justify-between text-sm">
@@ -786,7 +786,7 @@ export default function POSPage() {
                   <button
                     onClick={cobrar}
                     disabled={carrito.length === 0 || enviando}
-                    className="w-full py-3.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg transition shadow-lg"
+                    className="w-full py-3.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg transition shadow-lg touch-manipulation min-h-[48px]"
                   >
                     {enviando ? 'Procesando...' : pendiente > 0 ? 'Registrar Venta con Crédito' : 'Cobrar e Imprimir'}
                   </button>

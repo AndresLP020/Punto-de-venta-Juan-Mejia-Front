@@ -51,6 +51,15 @@ body {
     background: rgb(71 85 105);
     border-radius: 3px;
   }
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
 }
 
 /* Modo claro POS */
