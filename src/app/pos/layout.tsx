@@ -88,21 +88,21 @@ export default function POSLayout({
           <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
           <main className="flex-1 overflow-auto bg-slate-900/50 min-w-0 flex flex-col">
             {/* Barra móvil: menú hamburguesa + título */}
-            <header className="sticky top-0 z-30 flex md:hidden items-center gap-3 px-4 py-3 bg-slate-900 border-b border-slate-800/80 safe-area-inset-top">
+            <header className="sticky top-0 z-[60] flex md:hidden items-center gap-3 px-3 py-3 bg-slate-900 border-b border-slate-800/80 safe-area-inset-top shrink-0">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="flex-shrink-0 w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-white touch-manipulation"
+                className="flex-shrink-0 w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 flex items-center justify-center text-white touch-manipulation cursor-pointer"
                 aria-label="Abrir menú"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <svg className="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
               <MobileHeaderTitle />
             </header>
             <AdminModeBanner />
-            <div className="min-h-full bg-gradient-to-b from-slate-900/80 to-slate-900 pos-main-inner flex-1 px-3 py-4 sm:px-6 sm:py-6">
+            <div className="min-h-full bg-gradient-to-b from-slate-900/80 to-slate-900 pos-main-inner flex-1 px-4 py-5 sm:px-6 sm:py-6">
               {children}
             </div>
           </main>

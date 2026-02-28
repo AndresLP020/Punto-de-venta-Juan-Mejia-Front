@@ -404,7 +404,7 @@ export default function POSPage() {
       )}
 
       {/* Header con estadísticas */}
-      <div className="px-3 sm:px-6 py-3 border-b border-slate-700 bg-slate-800/50">
+      <div className="px-4 sm:px-6 py-4 border-b border-slate-700 bg-slate-800/50">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-white truncate">Nueva Venta</h1>
@@ -427,7 +427,7 @@ export default function POSPage() {
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         {/* Columna central */}
-        <div className="flex-1 flex flex-col p-3 sm:p-6 space-y-4 sm:space-y-6 overflow-auto min-h-0">
+        <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-auto min-h-0">
           {/* Escáner de código de barras */}
           <div className="bg-slate-800/50 rounded-xl p-4 sm:p-5 border border-slate-700">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -509,8 +509,8 @@ export default function POSPage() {
           {/* Categorías */}
           {categorias.length > 0 && (
             <div>
-              <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-2 sm:mb-3">Categorías</h3>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-3 sm:mb-3">Categorías</h3>
+              <div className="flex flex-wrap gap-2 sm:gap-2">
                 <button
                   onClick={() => setCategoriaFiltro('')}
                   className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition touch-manipulation min-h-[40px] ${
@@ -541,17 +541,17 @@ export default function POSPage() {
           {/* Productos disponibles */}
           {!busqueda && (
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">
+              <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-3 sm:mb-3">
                 Productos Disponibles ({productosDisponibles.length})
               </h3>
               {loading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                     <div key={i} className="h-24 bg-slate-700 rounded-lg animate-pulse" />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
                   {productosDisponibles.slice(0, 12).map((p) => (
                     <button
                       key={p.id}

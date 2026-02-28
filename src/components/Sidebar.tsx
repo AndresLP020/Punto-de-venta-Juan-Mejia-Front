@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdminMode } from '@/contexts/AdminModeContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const items: { href: string; label: string; icon: string; adminOnly?: boolean }[] = [
   { href: '/pos/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -40,10 +41,11 @@ const LABEL_BY_PATH: Record<string, string> = {
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { isAdminMode } = useAdminMode();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (open && onClose) onClose();
-  }, [pathname, open, onClose]);
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open && onClose) onClose();
@@ -125,25 +127,38 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
   return (
     <>
-      {/* Móvil: overlay + drawer */}
-      {onClose && (
-        <div
-          className={`fixed inset-0 z-40 bg-black/60 transition-opacity duration-200 md:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
+      {/* Desktop: sidebar siempre visible en flujo */}
       <aside
-        className={`
-          w-60 flex-shrink-0 bg-slate-900 border-r border-slate-800/80 flex flex-col shadow-xl
-          ${onClose
-            ? `fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out ${open ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`
-            : ''
-          }
-        `}
+        className="w-60 flex-shrink-0 bg-slate-900 border-r border-slate-800/80 shadow-xl hidden md:flex md:flex-col"
       >
         {asideContent}
       </aside>
+
+      {/* Móvil: overlay + drawer vía Portal para que nada bloquee el botón hamburguesa */}
+      {onClose && mounted && typeof document !== 'undefined' && createPortal(
+        <>
+          <div
+            role="button"
+            tabIndex={-1}
+            onClick={onClose}
+            onKeyDown={(e) => e.key === 'Escape' && onClose()}
+            className={`fixed inset-0 z-[100] bg-black/60 transition-opacity duration-200 md:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            aria-hidden="true"
+          />
+          <aside
+            className={`
+              fixed inset-y-0 left-0 z-[101] w-[min(280px,85vw)] max-w-[280px] flex flex-col shadow-2xl
+              bg-slate-900 border-r border-slate-800/80
+              transform transition-transform duration-200 ease-out
+              md:hidden
+              ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
+            `}
+          >
+            {asideContent}
+          </aside>
+        </>,
+        document.body
+      )}
     </>
   );
 }

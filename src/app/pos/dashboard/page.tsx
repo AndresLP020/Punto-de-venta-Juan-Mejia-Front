@@ -181,41 +181,41 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Métricas */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-6 shadow-elevated hover:border-slate-600/80 transition">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6 sm:mb-8">
+              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Productos Activos</p>
-                    <p className="text-3xl font-bold mt-1 text-white tabular-nums">{productosActivos}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{productosActivos}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-6 shadow-elevated hover:border-slate-600/80 transition">
+              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Transacciones Hoy</p>
-                    <p className="text-3xl font-bold mt-1 text-white tabular-nums">{transaccionesHoy}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{transaccionesHoy}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-6 shadow-elevated hover:border-slate-600/80 transition">
+              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Stock Bajo</p>
-                    <p className="text-3xl font-bold mt-1 text-white tabular-nums">{productosStockBajo}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{productosStockBajo}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
@@ -224,15 +224,15 @@ export default function DashboardPage() {
             </div>
 
             {/* Paneles */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/80">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-700/80">
                   <h2 className="text-base font-semibold text-white">Ventas Recientes</h2>
-                  <Link href="/pos/ventas" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition">
+                  <Link href="/pos/ventas" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition touch-manipulation py-1">
                     Ver todas →
                   </Link>
                 </div>
-                <div className="p-6 min-h-[220px]">
+                <div className="p-4 sm:p-6 min-h-[200px] sm:min-h-[220px]">
                   {ventasRecientes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-slate-500">
                       <svg className="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -254,11 +254,11 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
-                <div className="px-6 py-4 border-b border-slate-700/80">
+                <div className="px-4 sm:px-6 py-4 border-b border-slate-700/80">
                   <h2 className="text-base font-semibold text-white">Productos Más Vendidos</h2>
                   <p className="text-slate-400 text-sm mt-0.5">Por cantidad vendida</p>
                 </div>
-                <div className="p-6 min-h-[220px]">
+                <div className="p-4 sm:p-6 min-h-[200px] sm:min-h-[220px]">
                   {productosMasVendidos.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-slate-500">
                       <svg className="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
