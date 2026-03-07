@@ -309,7 +309,7 @@ function VentasPageContent() {
     };
     const oldM = agrupar(original);
     const newM = agrupar(nuevo);
-    const todosIds = new Set([...oldM.keys(), ...newM.keys()]);
+    const todosIds = new Set(Array.from(oldM.keys()).concat(Array.from(newM.keys())));
     for (const id of todosIds) {
       const oldItem = oldM.get(id);
       const newItem = newM.get(id);
