@@ -309,8 +309,11 @@ function VentasPageContent() {
     };
     const oldM = agrupar(original);
     const newM = agrupar(nuevo);
-    const todosIds = new Set(Array.from(oldM.keys()).concat(Array.from(newM.keys())));
-    for (const id of todosIds) {
+    const idsViejos = Array.from(oldM.keys());
+    const idsNuevos = Array.from(newM.keys());
+    const todosIds = Array.from(new Set(idsViejos.concat(idsNuevos)));
+    for (let i = 0; i < todosIds.length; i++) {
+      const id = todosIds[i];
       const oldItem = oldM.get(id);
       const newItem = newM.get(id);
       const nombre = (newItem ?? oldItem)?.nombre ?? 'Producto';
