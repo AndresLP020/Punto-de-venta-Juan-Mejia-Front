@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { login } from '@/lib/api';
 
 export default function HomePage() {
   const router = useRouter();
@@ -10,17 +11,23 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!usuario.trim() || !password.trim()) {
+    const user = usuario.trim();
+    const pass = password.trim();
+    if (!user || !pass) {
       setError('Ingrese usuario y contraseña');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await login(user, pass);
       router.push('/pos/dashboard');
-    }, 400);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Usuario o contraseña incorrectos');
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,6 +66,7 @@ export default function HomePage() {
                 placeholder="Ej. administrador"
                 autoComplete="username"
                 disabled={loading}
+                required
               />
             </div>
             <div>
@@ -74,6 +82,7 @@ export default function HomePage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={loading}
+                required
               />
             </div>
             {error && (
@@ -94,7 +103,7 @@ export default function HomePage() {
           </form>
           
           <p className="mt-6 text-center text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
-            Modo demo: use cualquier usuario y contraseña para acceder.
+            Credenciales: usuario <strong>admin</strong>, contraseña configurada en el servidor.
           </p>
         </div>
 

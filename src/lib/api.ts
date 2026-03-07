@@ -596,6 +596,19 @@ export async function deleteUsuario(id: number) {
   if (!res.ok) throw new Error('Error al eliminar usuario');
 }
 
+export async function login(usuario: string, password: string): Promise<{ ok: true }> {
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario: usuario.trim(), password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Usuario o contraseña incorrectos');
+  }
+  return res.json();
+}
+
 export async function verifyAdminPassword(password: string): Promise<{ ok: true }> {
   const res = await fetch(`${BASE}/api/auth/verify-admin`, {
     method: 'POST',
