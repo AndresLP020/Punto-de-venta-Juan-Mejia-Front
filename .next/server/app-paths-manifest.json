@@ -1,8 +1,4 @@
 {
-  "/page": "app/page.js",
-  "/pos/sueldos/page": "app/pos/sueldos/page.js",
-  "/pos/configuracion/page": "app/pos/configuracion/page.js",
-  "/pos/reportes/page": "app/pos/reportes/page.js",
-  "/pos/lienzo-charro/page": "app/pos/lienzo-charro/page.js",
-  "/pos/ventas/page": "app/pos/ventas/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js"
 }
