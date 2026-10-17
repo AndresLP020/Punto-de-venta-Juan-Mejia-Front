@@ -3,9 +3,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import { motion, type Variants } from 'framer-motion';
 import { getProductos, getVentas, verifyAdminPassword, type Producto } from '@/lib/api';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
 import { useAdminMode } from '@/contexts/AdminModeContext';
+import { AnimatedNumber } from '@/components/AnimatedNumber';
+
+const HeroBackground3D = dynamic(() => import('@/components/HeroBackground3D'), { ssr: false });
+
+const contenedorStagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
+};
+const itemArriba: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+};
 
 type Venta = {
   id: number;
@@ -173,6 +187,45 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="flex-1 p-3 sm:p-6">
+        {/* Banner animado con fondo 3D */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="relative overflow-hidden rounded-2xl border border-[#26406e] bg-gradient-to-br from-[#0e1c3c] via-[#12245080] to-[#0a1122] mb-6 sm:mb-8"
+        >
+          <div className="absolute inset-0 opacity-90 pointer-events-none">
+            <HeroBackground3D />
+          </div>
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-yellow-400/10 blur-3xl pointer-events-none" />
+          <div className="relative z-10 px-5 sm:px-8 py-7 sm:py-10">
+            <motion.p
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="text-yellow-300 font-semibold text-xs sm:text-sm uppercase tracking-widest"
+            >
+              Nutri-Ala · Panel del negocio
+            </motion.p>
+            <motion.h2
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25, duration: 0.5 }}
+              className="mt-1 text-2xl sm:text-4xl font-extrabold text-white drop-shadow"
+            >
+              ¡Bienvenido de nuevo! 🐔
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="mt-1.5 text-slate-300 text-sm sm:text-base capitalize"
+            >
+              {hoy()}
+            </motion.p>
+          </div>
+        </motion.div>
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
@@ -181,51 +234,91 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Métricas */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6 sm:mb-8">
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
+            <motion.div
+              variants={contenedorStagger}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6 sm:mb-8"
+            >
+              <motion.div
+                variants={itemArriba}
+                whileHover={{ y: -6, scale: 1.02 }}
+                className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition-colors"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Productos Activos</p>
-                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{productosActivos}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">
+                      <AnimatedNumber value={productosActivos} />
+                    </p>
                   </div>
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <motion.div
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0"
+                  >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                  </div>
+                  </motion.div>
                 </div>
-              </div>
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
+              </motion.div>
+              <motion.div
+                variants={itemArriba}
+                whileHover={{ y: -6, scale: 1.02 }}
+                className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition-colors"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Transacciones Hoy</p>
-                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{transaccionesHoy}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">
+                      <AnimatedNumber value={transaccionesHoy} />
+                    </p>
                   </div>
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <motion.div
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0"
+                  >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                  </div>
+                  </motion.div>
                 </div>
-              </div>
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition">
+              </motion.div>
+              <motion.div
+                variants={itemArriba}
+                whileHover={{ y: -6, scale: 1.02 }}
+                className="rounded-2xl bg-slate-800/80 border border-slate-700/80 p-5 sm:p-6 shadow-elevated hover:border-slate-600/80 transition-colors"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-sm font-medium">Stock Bajo</p>
-                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">{productosStockBajo}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 text-white tabular-nums">
+                      <AnimatedNumber value={productosStockBajo} />
+                    </p>
                   </div>
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <motion.div
+                    animate={{ scale: [1, 1.12, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0"
+                  >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                  </div>
+                  </motion.div>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* Paneles */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
+            <motion.div
+              variants={contenedorStagger}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
+            >
+              <motion.div variants={itemArriba} className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
                 <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-700/80">
                   <h2 className="text-base font-semibold text-white">Ventas Recientes</h2>
                   <Link href="/pos/ventas" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition touch-manipulation py-1">
@@ -242,18 +335,24 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <ul className="space-y-3">
-                      {ventasRecientes.map((v) => (
-                        <li key={v.id} className="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
+                      {ventasRecientes.map((v, i) => (
+                        <motion.li
+                          key={v.id}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.15 + i * 0.07 }}
+                          className="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0"
+                        >
                           <span className="text-slate-400 text-sm">#{v.id} · {formatearFecha(v.fecha)}</span>
                           <span className="text-white font-semibold tabular-nums">${formatearMoneda(v.total ?? 0)}</span>
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
                   )}
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
+              <motion.div variants={itemArriba} className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
                 <div className="px-4 sm:px-6 py-4 border-b border-slate-700/80">
                   <h2 className="text-base font-semibold text-white">Productos Más Vendidos</h2>
                   <p className="text-slate-400 text-sm mt-0.5">Por cantidad vendida</p>
@@ -269,7 +368,14 @@ export default function DashboardPage() {
                   ) : (
                     <ul className="space-y-4">
                       {productosMasVendidos.slice(0, 5).map((pv, index) => (
-                        <li key={pv.id} className="flex items-center gap-4 py-2 border-b border-slate-700/50 last:border-0">
+                        <motion.li
+                          key={pv.id}
+                          initial={{ opacity: 0, x: 12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.15 + index * 0.08 }}
+                          whileHover={{ x: 4 }}
+                          className="flex items-center gap-4 py-2 border-b border-slate-700/50 last:border-0"
+                        >
                           <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
                             {index + 1}
                           </span>
@@ -280,13 +386,13 @@ export default function DashboardPage() {
                           <div className="text-right flex-shrink-0">
                             <p className="text-white font-semibold tabular-nums">${formatearMoneda(pv.totalVentas)}</p>
                           </div>
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
                   )}
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </>
         )}
       </div>

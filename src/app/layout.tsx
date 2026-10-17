@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { CartProvider } from '@/contexts/CartContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Punto de Venta | Juan Mejía',
-  description: 'Sistema de punto de venta profesional',
+  title: 'Nutri-Ala | El buen sabor del pollo',
+  description: 'Nutri-Ala: pollo fresco y productos de la mejor calidad. Conoce nuestros productos y ofertas.',
 };
 
 export const viewport = {
@@ -24,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={inter.variable}>
       <body className="min-h-screen bg-surface font-sans antialiased">
-        {children}
+        <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );

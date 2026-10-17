@@ -5,12 +5,15 @@ import { usePathname } from 'next/navigation';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Logo } from '@/components/Logo';
 
 const items: { href: string; label: string; icon: string; adminOnly?: boolean }[] = [
   { href: '/pos/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   { href: '/pos/productos', label: 'Productos', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+  { href: '/pos/ofertas', label: 'Ofertas', icon: 'M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z', adminOnly: true },
   { href: '/pos/proveedores', label: 'Proveedores', icon: 'M8 7h12m0 0l-4-4m4 4l4-4m0 6H4m0 0l4 4m-4-4l4-4' },
   { href: '/pos', label: 'Ventas', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' },
+  { href: '/pos/pedidos', label: 'Pedidos', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', adminOnly: true },
   { href: '/pos/clientes', label: 'Clientes', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
   { href: '/pos/deudores', label: 'Deudores', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { href: '/pos/gastos-admin', label: 'Gastos Admin', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', adminOnly: true },
@@ -25,8 +28,10 @@ const items: { href: string; label: string; icon: string; adminOnly?: boolean }[
 const LABEL_BY_PATH: Record<string, string> = {
   '/pos/dashboard': 'Dashboard',
   '/pos/productos': 'Productos',
+  '/pos/ofertas': 'Ofertas',
   '/pos/proveedores': 'Proveedores',
   '/pos': 'Ventas',
+  '/pos/pedidos': 'Pedidos',
   '/pos/clientes': 'Clientes',
   '/pos/deudores': 'Deudores',
   '/pos/gastos-admin': 'Gastos Admin',
@@ -55,14 +60,14 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <>
       <div className="p-4 md:p-5 border-b border-slate-800/80">
         <Link href="/pos/dashboard" className="flex items-center gap-3 group" onClick={onClose}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg ring-2 ring-emerald-500/20 group-hover:ring-emerald-400/30 transition">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
+          <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-lg ring-2 ring-amber-400/40 group-hover:ring-amber-400/60 transition overflow-hidden">
+            <Logo size={40} />
           </div>
           <div>
-            <span className="font-semibold text-white block leading-tight">POS Juan Mejía</span>
-            <span className="text-xs text-slate-500 font-medium">Sistema de ventas</span>
+            <span className="font-extrabold text-white block leading-tight tracking-tight">
+              Nutri<span className="text-red-500">-</span>Ala
+            </span>
+            <span className="text-xs text-amber-400/90 font-medium">el buen sabor del pollo…</span>
           </div>
         </Link>
       </div>
@@ -72,6 +77,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
           const isActive =
             pathname === href ||
             (pathname === '/pos' && label === 'Ventas') ||
+            (pathname === '/pos/pedidos' && label === 'Pedidos') ||
             (pathname === '/pos/ventas' && label === 'Historial') ||
             (pathname === '/pos/clientes' && label === 'Clientes') ||
             (pathname === '/pos/deudores' && label === 'Deudores') ||
@@ -86,10 +92,10 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               key={`${href}-${label}`}
               href={href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition min-h-[44px] md:min-h-0 touch-manipulation ${
+              className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-semibold transition min-h-[44px] md:min-h-0 touch-manipulation ${
                 isActive
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-white active:bg-slate-700'
+                  ? 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/20'
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
               }`}
             >
               <svg className="w-5 h-5 flex-shrink-0 opacity-90" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -112,7 +118,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       )}
       <div className="p-3 border-t border-slate-800/80">
         <Link
-          href="/"
+          href="/acceso"
           onClick={onClose}
           className="flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/80 hover:text-white transition min-h-[44px] md:min-h-0 touch-manipulation"
         >
@@ -129,7 +135,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <>
       {/* Desktop: sidebar siempre visible en flujo */}
       <aside
-        className="w-60 flex-shrink-0 bg-slate-900 border-r border-slate-800/80 shadow-xl hidden md:flex md:flex-col"
+        className="w-60 flex-shrink-0 bg-gradient-to-b from-[#0e1c38] to-[#0a1428] border-r border-[#1d3058] shadow-xl hidden md:flex md:flex-col"
       >
         {asideContent}
       </aside>
@@ -148,7 +154,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
           <aside
             className={`
               fixed inset-y-0 left-0 z-[101] w-[min(280px,85vw)] max-w-[280px] flex flex-col shadow-2xl
-              bg-slate-900 border-r border-slate-800/80
+              bg-gradient-to-b from-[#0e1c38] to-[#0a1428] border-r border-[#1d3058]
               transform transition-transform duration-200 ease-out
               md:hidden
               ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
@@ -165,6 +171,6 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
 export function MobileHeaderTitle() {
   const pathname = usePathname();
-  const title = LABEL_BY_PATH[pathname ?? ''] ?? 'POS';
+  const title = LABEL_BY_PATH[pathname ?? ''] ?? 'Nutri-Ala';
   return <span className="font-semibold text-white truncate">{title}</span>;
 }

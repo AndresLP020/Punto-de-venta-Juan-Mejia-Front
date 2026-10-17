@@ -105,3 +105,119 @@ body {
 .theme-light .pos-layout button:hover {
   color: inherit;
 }
+
+/* =====================================================================
+   Nutri-Ala · Rediseño visual del Punto de Venta (SOLO ESTILOS)
+   Paleta de marca: navy profundo + acento azul + dorado.
+   No modifica lógica ni estructura; solo reasigna colores/tonos.
+   ===================================================================== */
+.theme-dark .pos-layout {
+  --na-bg: #0a1122;
+  --na-panel: #0e1a30;
+  --na-panel-2: #101f3b;
+  --na-card: #16264a;
+  --na-card-2: #1f325b;
+  --na-elevated: #2a4373;
+  --na-border: #26406e;
+  --na-border-soft: #1d3058;
+  --na-accent: #2f6bff;
+  --na-accent-600: #205fe6;
+  --na-accent-soft: rgb(47 107 255 / 0.16);
+  --na-accent-text: #8fb2ff;
+  --na-gold: #f7c948;
+}
+
+/* ---- Superficies base ---- */
+.theme-dark .pos-layout,
+.theme-dark .pos-layout.bg-slate-950,
+.theme-dark .pos-layout .bg-slate-950 { background-color: var(--na-bg); }
+
+.theme-dark .pos-layout .bg-slate-900 { background-color: var(--na-panel); }
+.theme-dark .pos-layout .bg-slate-900\/50 { background-color: rgb(14 26 48 / 0.6); }
+.theme-dark .pos-layout .bg-slate-900\/60 { background-color: rgb(14 26 48 / 0.7); }
+.theme-dark .pos-layout .bg-slate-900\/90 { background-color: rgb(14 26 48 / 0.92); }
+
+.theme-dark .pos-layout .bg-slate-800,
+.theme-dark .pos-layout .bg-slate-800\/80 { background-color: var(--na-card); }
+.theme-dark .pos-layout .bg-slate-800\/50 { background-color: rgb(22 38 74 / 0.65); }
+.theme-dark .pos-layout .bg-slate-800\/30 { background-color: rgb(22 38 74 / 0.45); }
+
+.theme-dark .pos-layout .bg-slate-700,
+.theme-dark .pos-layout .bg-slate-700\/80 { background-color: var(--na-card-2); }
+.theme-dark .pos-layout .bg-slate-700\/50 { background-color: rgb(31 50 91 / 0.6); }
+.theme-dark .pos-layout .bg-slate-700\/60 { background-color: rgb(31 50 91 / 0.7); }
+.theme-dark .pos-layout .bg-slate-700\/30 { background-color: rgb(31 50 91 / 0.4); }
+.theme-dark .pos-layout .bg-slate-600 { background-color: var(--na-elevated); }
+
+/* Fondo del área principal (gradiente) */
+.theme-dark .pos-layout .pos-main-inner {
+  background: linear-gradient(to bottom, rgb(14 26 48 / 0.85), var(--na-bg)) !important;
+}
+
+/* ---- Bordes ---- */
+.theme-dark .pos-layout .border-slate-700,
+.theme-dark .pos-layout .border-slate-700\/80,
+.theme-dark .pos-layout .border-slate-700\/60,
+.theme-dark .pos-layout .border-slate-700\/50,
+.theme-dark .pos-layout .border-slate-800,
+.theme-dark .pos-layout .border-slate-800\/80,
+.theme-dark .pos-layout .border-slate-600,
+.theme-dark .pos-layout .border-slate-600\/80 { border-color: var(--na-border); }
+.theme-dark .pos-layout .border-slate-500 { border-color: #3a548a; }
+
+/* ---- Hover de superficies ---- */
+.theme-dark .pos-layout .hover\:bg-slate-700:hover,
+.theme-dark .pos-layout .hover\:bg-slate-700\/80:hover,
+.theme-dark .pos-layout .hover\:bg-slate-700\/50:hover,
+.theme-dark .pos-layout .hover\:bg-slate-700\/30:hover { background-color: var(--na-card-2); }
+.theme-dark .pos-layout .hover\:bg-slate-600:hover { background-color: var(--na-elevated); }
+.theme-dark .pos-layout .hover\:bg-slate-800\/80:hover { background-color: var(--na-card); }
+.theme-dark .pos-layout .hover\:border-slate-600:hover,
+.theme-dark .pos-layout .hover\:border-slate-600\/80:hover,
+.theme-dark .pos-layout .hover\:border-slate-500:hover { border-color: var(--na-accent); }
+.theme-dark .pos-layout .active\:bg-slate-700:active { background-color: var(--na-card-2); }
+
+/* ---- Acento primario: emerald / green -> azul de marca ---- */
+.theme-dark .pos-layout .bg-emerald-500,
+.theme-dark .pos-layout .bg-green-500 { background-color: var(--na-accent); }
+.theme-dark .pos-layout .bg-green-500\/90 { background-color: rgb(47 107 255 / 0.9); }
+.theme-dark .pos-layout .bg-emerald-500\/80 { background-color: rgb(47 107 255 / 0.85); }
+.theme-dark .pos-layout .hover\:bg-emerald-600:hover,
+.theme-dark .pos-layout .hover\:bg-green-600:hover { background-color: var(--na-accent-600); }
+.theme-dark .pos-layout .bg-emerald-500\/20,
+.theme-dark .pos-layout .bg-emerald-500\/10,
+.theme-dark .pos-layout .bg-green-500\/20,
+.theme-dark .pos-layout .bg-green-500\/10 { background-color: var(--na-accent-soft); }
+
+.theme-dark .pos-layout .text-emerald-400,
+.theme-dark .pos-layout .text-emerald-300,
+.theme-dark .pos-layout .text-emerald-500,
+.theme-dark .pos-layout .text-green-400,
+.theme-dark .pos-layout .text-green-300,
+.theme-dark .pos-layout .text-green-500 { color: var(--na-accent-text); }
+
+.theme-dark .pos-layout .border-emerald-500\/30,
+.theme-dark .pos-layout .border-emerald-500\/20,
+.theme-dark .pos-layout .border-green-500\/30,
+.theme-dark .pos-layout .border-green-500\/20 { border-color: rgb(47 107 255 / 0.35); }
+
+.theme-dark .pos-layout .border-emerald-500,
+.theme-dark .pos-layout .border-green-500 { border-color: var(--na-accent); }
+.theme-dark .pos-layout .border-t-emerald-500 { border-top-color: var(--na-accent); }
+.theme-dark .pos-layout .border-emerald-500\/30 { border-color: rgb(47 107 255 / 0.35); }
+
+.theme-dark .pos-layout .ring-emerald-500,
+.theme-dark .pos-layout .focus\:ring-emerald-500:focus,
+.theme-dark .pos-layout .focus\:ring-green-500:focus { --tw-ring-color: var(--na-accent); }
+.theme-dark .pos-layout .focus\:border-emerald-500:focus { border-color: var(--na-accent); }
+.theme-dark .pos-layout .shadow-emerald-500\/20 { --tw-shadow-color: rgb(47 107 255 / 0.28); }
+
+/* Check de casillas / radios con acento */
+.theme-dark .pos-layout .text-emerald-500,
+.theme-dark .pos-layout input.text-green-500 { color: var(--na-accent); }
+
+/* Realce sutil de tarjetas para dar profundidad al nuevo diseño */
+.theme-dark .pos-layout .rounded-2xl.border,
+.theme-dark .pos-layout .rounded-xl.border {
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.45);
+}

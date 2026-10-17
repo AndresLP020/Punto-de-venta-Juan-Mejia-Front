@@ -16,9 +16,23 @@ const formInitial = {
   estado: 'Activo',
   esGranel: false,
   proveedorId: '' as string | number,
+  descripcion: '',
+  imagen: '',
+  destacado: false,
 };
 
 const redondearPrecio = (n: number) => Math.round(n * 100) / 100;
+
+const MAX_IMG_BYTES = 1_500_000; // ~1.5 MB
+
+function archivoADataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function ProductosPage() {
   const { isAdminMode } = useAdminMode() ?? { isAdminMode: false };
@@ -81,9 +95,28 @@ export default function ProductosPage() {
       estado: p.estado || 'Activo',
       esGranel: Boolean(p.esGranel),
       proveedorId: p.proveedorId ?? '',
+      descripcion: p.descripcion || '',
+      imagen: p.imagen || '',
+      destacado: Boolean(p.destacado),
     });
     setError('');
     setModalAbierto(true);
+  };
+
+  const onImagenProducto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMG_BYTES) {
+      setError('La imagen es muy grande (máx. 1.5 MB). Usa una imagen más liviana.');
+      return;
+    }
+    try {
+      const dataUrl = await archivoADataURL(file);
+      setForm((f) => ({ ...f, imagen: dataUrl }));
+      setError('');
+    } catch {
+      setError('No se pudo leer la imagen');
+    }
   };
 
   const cerrarModal = () => {
@@ -121,6 +154,9 @@ export default function ProductosPage() {
       estado: form.estado,
       esGranel: Boolean(form.esGranel),
       proveedorId: proveedorIdNum,
+      descripcion: form.descripcion.trim(),
+      imagen: form.imagen,
+      destacado: Boolean(form.destacado),
     };
     setGuardando(true);
     try {
@@ -793,6 +829,57 @@ export default function ProductosPage() {
                   <option value="Inactivo">Inactivo</option>
                 </select>
               </div>
+
+              {/* Página promocional */}
+              <div className="pt-2 border-t border-slate-700">
+                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3">Página promocional</p>
+                <div>
+                  <label className="block text-slate-400 text-sm font-medium mb-1">Descripción</label>
+                  <textarea
+                    value={form.descripcion}
+                    onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+                    placeholder="Describe el producto para mostrarlo en la página promocional…"
+                    rows={3}
+                    className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-slate-400 text-sm font-medium mb-1">Imagen</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-xl bg-slate-900/60 border border-slate-600 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {form.imagen ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={form.imagen} alt="preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16v12H4z" /></svg>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input type="file" accept="image/*" onChange={onImagenProducto} className="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:text-white file:font-semibold file:cursor-pointer hover:file:bg-emerald-600" />
+                      <input
+                        type="text"
+                        value={form.imagen.startsWith('data:') ? '' : form.imagen}
+                        onChange={(e) => setForm((f) => ({ ...f, imagen: e.target.value }))}
+                        placeholder="…o pega una URL de imagen"
+                        className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      />
+                      {form.imagen && (
+                        <button type="button" onClick={() => setForm((f) => ({ ...f, imagen: '' }))} className="text-xs text-red-300 hover:text-red-200">Quitar imagen</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer mt-3">
+                  <input
+                    type="checkbox"
+                    checked={form.destacado}
+                    onChange={(e) => setForm((f) => ({ ...f, destacado: e.target.checked }))}
+                    className="rounded border-slate-500 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span className="text-slate-300 text-sm font-medium">Mostrar como producto destacado</span>
+                </label>
+              </div>
+
               {error && <p className="text-red-400 text-sm">{error}</p>}
               <div className="flex gap-3 pt-2">
                 <button

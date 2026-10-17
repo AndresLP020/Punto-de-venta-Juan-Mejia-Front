@@ -276,7 +276,7 @@ export async function deleteMovimientoLienzo(id: number): Promise<void> {
   if (!res.ok) throw new Error('Error al eliminar movimiento');
 }
 
-export async function postProducto(body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) {
+export async function postProducto(body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number; descripcion?: string; imagen?: string; destacado?: boolean }) {
   const res = await fetch(`${BASE}/api/productos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -286,7 +286,7 @@ export async function postProducto(body: { nombre: string; codigo?: string; cate
   return res.json();
 }
 
-export async function putProducto(id: number, body: { nombre?: string; codigo?: string; categoria?: string; precio?: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number | null }) {
+export async function putProducto(id: number, body: { nombre?: string; codigo?: string; categoria?: string; precio?: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number | null; descripcion?: string; imagen?: string; destacado?: boolean }) {
   const res = await fetch(`${BASE}/api/productos/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -316,7 +316,89 @@ export type Producto = {
   /** Si true, el producto se vende por peso (kg). Precio = precio por kg, stock = stock en kg */
   esGranel?: boolean;
   proveedorId?: number;
+  /** Descripción para la página promocional */
+  descripcion?: string;
+  /** Imagen del producto (URL o data URL base64) */
+  imagen?: string;
+  /** Si true, aparece destacado en la página promocional */
+  destacado?: boolean;
 };
+
+// Ofertas (para la página promocional)
+export type Oferta = {
+  id: number;
+  titulo: string;
+  descripcion?: string;
+  imagen?: string;
+  precioNormal?: number;
+  precioOferta?: number;
+  productos?: string[];
+  activa?: boolean;
+  fechaInicio?: string;
+  fechaFin?: string;
+  creadaEn?: string;
+};
+
+export async function getOfertas(soloActivas = false): Promise<Oferta[]> {
+  const url = soloActivas ? `${BASE}/api/ofertas?soloActivas=1` : `${BASE}/api/ofertas`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Error al cargar ofertas');
+  return res.json();
+}
+
+export async function postOferta(body: {
+  titulo: string;
+  descripcion?: string;
+  imagen?: string;
+  precioNormal?: number;
+  precioOferta?: number;
+  productos?: string[];
+  activa?: boolean;
+  fechaInicio?: string;
+  fechaFin?: string;
+}): Promise<Oferta> {
+  const res = await fetch(`${BASE}/api/ofertas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al crear oferta');
+  }
+  return res.json();
+}
+
+export async function putOferta(
+  id: number,
+  body: {
+    titulo?: string;
+    descripcion?: string;
+    imagen?: string;
+    precioNormal?: number;
+    precioOferta?: number;
+    productos?: string[];
+    activa?: boolean;
+    fechaInicio?: string;
+    fechaFin?: string;
+  }
+): Promise<Oferta> {
+  const res = await fetch(`${BASE}/api/ofertas/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al actualizar oferta');
+  }
+  return res.json();
+}
+
+export async function deleteOferta(id: number): Promise<void> {
+  const res = await fetch(`${BASE}/api/ofertas/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Error al eliminar oferta');
+}
 
 export type Cliente = {
   id: number;
@@ -633,6 +715,233 @@ export async function verifyAdminPassword(password: string): Promise<{ ok: true 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error((data as { error?: string }).error || 'Contraseña incorrecta');
+  }
+  return res.json();
+}
+
+// ============================================================
+// PEDIDOS ONLINE Y PAGOS (carrito de la página promocional)
+// ============================================================
+
+export type MetodoPago = 'efectivo' | 'transferencia' | 'stripe' | 'mercadopago';
+export type EstadoPago = 'pendiente' | 'en_revision' | 'pagado' | 'rechazado';
+export type EstadoPedido = 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'entregado' | 'cancelado';
+export type TipoEntrega = 'pickup' | 'envio';
+
+export type PedidoItem = {
+  id: number;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  costo?: number;
+  esGranel?: boolean;
+  imagen?: string;
+};
+
+export type PedidoCliente = {
+  nombre: string;
+  telefono: string;
+  email?: string;
+  direccion?: string;
+  referencias?: string;
+};
+
+export type Pedido = {
+  id: number;
+  fecha: string;
+  items: PedidoItem[];
+  subtotal: number;
+  envio: number;
+  total: number;
+  cliente: PedidoCliente;
+  entrega: TipoEntrega;
+  metodoPago: MetodoPago;
+  estadoPago: EstadoPago;
+  estadoPedido: EstadoPedido;
+  comprobante?: string;
+  notas?: string;
+  stripeSessionId?: string;
+  mpPreferenceId?: string;
+  creadoEn?: string;
+  actualizadoEn?: string;
+};
+
+export type PagosConfig = {
+  currency: string;
+  metodos: { efectivo: boolean; transferencia: boolean; stripe: boolean; mercadopago: boolean };
+  stripePublishableKey: string;
+  stripePendienteActivacion?: boolean;
+  banco: { titular: string; banco: string; cuenta: string; clabe: string; tarjeta: string };
+  whatsapp: string;
+  costoEnvio: number;
+};
+
+export async function getPagosConfig(): Promise<PagosConfig> {
+  const res = await fetch(`${BASE}/api/pagos/config`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Error al cargar configuración de pagos');
+  return res.json();
+}
+
+export async function putPagosConfig(body: PagosConfig['banco'] & { whatsapp?: string; costoEnvio?: number }): Promise<PagosConfig['banco'] & { whatsapp?: string; costoEnvio?: number }> {
+  const res = await fetch(`${BASE}/api/pagos/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al guardar los datos bancarios');
+  }
+  return res.json();
+}
+
+export async function getPedidos(filtros?: {
+  estadoPago?: EstadoPago;
+  estadoPedido?: EstadoPedido;
+  metodoPago?: MetodoPago;
+}): Promise<Pedido[]> {
+  const qs = new URLSearchParams();
+  if (filtros?.estadoPago) qs.set('estadoPago', filtros.estadoPago);
+  if (filtros?.estadoPedido) qs.set('estadoPedido', filtros.estadoPedido);
+  if (filtros?.metodoPago) qs.set('metodoPago', filtros.metodoPago);
+  const q = qs.toString();
+  const res = await fetch(`${BASE}/api/pedidos${q ? `?${q}` : ''}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Error al cargar pedidos');
+  return res.json();
+}
+
+export async function getPedido(id: number): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Pedido no encontrado');
+  return res.json();
+}
+
+export async function postPedido(body: {
+  items: PedidoItem[];
+  cliente: PedidoCliente;
+  entrega: TipoEntrega;
+  metodoPago: MetodoPago;
+  envio?: number;
+  notas?: string;
+}): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al crear el pedido');
+  }
+  return res.json();
+}
+
+export async function putPedidoCheckout(
+  id: number,
+  body: {
+    items: PedidoItem[];
+    cliente: PedidoCliente;
+    entrega: TipoEntrega;
+    metodoPago: MetodoPago;
+    envio?: number;
+    notas?: string;
+  }
+): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}/checkout`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al actualizar el pedido');
+  }
+  return res.json();
+}
+
+export async function subirComprobante(id: number, comprobante: string): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}/comprobante`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comprobante }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al subir el comprobante');
+  }
+  return res.json();
+}
+
+export async function verificarPedido(id: number): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}/verificar`, { method: 'PUT' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al confirmar el pago');
+  }
+  return res.json();
+}
+
+export async function rechazarPedido(id: number, motivo?: string): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}/rechazar`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo: motivo || '' }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al rechazar el pedido');
+  }
+  return res.json();
+}
+
+export async function actualizarEstadoPedido(id: number, estadoPedido: EstadoPedido): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pedidos/${id}/estado`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estadoPedido }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al actualizar el estado');
+  }
+  return res.json();
+}
+
+export async function crearStripeCheckout(pedidoId: number): Promise<{ url: string }> {
+  const res = await fetch(`${BASE}/api/pagos/stripe/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pedidoId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al iniciar el pago con Stripe');
+  }
+  return res.json();
+}
+
+export async function confirmarStripePago(pedidoId: number): Promise<Pedido> {
+  const res = await fetch(`${BASE}/api/pagos/stripe/confirmar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pedidoId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al confirmar el pago con Stripe');
+  }
+  return res.json();
+}
+
+export async function crearMercadoPagoPreference(pedidoId: number): Promise<{ init_point: string; preferenceId: string }> {
+  const res = await fetch(`${BASE}/api/pagos/mercadopago/preference`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pedidoId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Error al iniciar el pago con Mercado Pago');
   }
   return res.json();
 }
