@@ -252,7 +252,7 @@ export default function ConfiguracionPage() {
               </div>
               <div>
                 <label className="block text-slate-400 text-sm font-medium mb-1">
-                  Contraseña {editingId ? '(dejar en blanco para no cambiar)' : '*'}
+                  Contraseña {editingId ? '(dejar en blanco para no cambiar)' : '* (mínimo 6 caracteres)'}
                 </label>
                 <input
                   type="password"

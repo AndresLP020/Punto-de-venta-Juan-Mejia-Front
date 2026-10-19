@@ -64,13 +64,27 @@ export default function GastosAdminPage() {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Fechas por defecto para filtro (mes actual)
-  useEffect(() => {
+  // El periodo elegido define el rango Desde/Hasta (fecha local, no UTC)
+  const fechaLocal = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const aplicarPeriodo = useCallback((periodo: PeriodoResumen) => {
+    setPeriodoResumen(periodo);
+    if (periodo === 'personalizado') return;
     const hoy = new Date();
-    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    if (!fechaDesde) setFechaDesde(primerDia.toISOString().split('T')[0]);
-    if (!fechaHasta) setFechaHasta(hoy.toISOString().split('T')[0]);
+    let desde = hoy;
+    if (periodo === 'semanal') {
+      const dia = hoy.getDay(); // semana de lunes a domingo
+      desde = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (dia === 0 ? 6 : dia - 1));
+    } else if (periodo === 'mensual') desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    else if (periodo === 'anual') desde = new Date(hoy.getFullYear(), 0, 1);
+    setFechaDesde(fechaLocal(desde));
+    setFechaHasta(fechaLocal(hoy));
   }, []);
+
+  // Por defecto: mes actual
+  useEffect(() => {
+    aplicarPeriodo('mensual');
+  }, [aplicarPeriodo]);
 
   const ahora = new Date();
   const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
@@ -103,8 +117,9 @@ export default function GastosAdminPage() {
     }, 0);
   }, 0);
   const gananciaBrutaMes = ingresosTotalesMes - costoVentasMes;
-  // Fórmula unificada: Ganancia neta = Ingresos (ventas) − Costo ventas − Gastos Admin − Nóminas
-  const gananciaNetaMes = gananciaBrutaMes - totalGastosMes - totalNominasMes;
+  // Fórmula unificada: Ganancia neta = Ingresos (ventas) − Costo ventas − Gastos Admin.
+  // Las nóminas y adelantos ya están dentro de los gastos (categoría Sueldos), por eso no se restan otra vez.
+  const gananciaNetaMes = gananciaBrutaMes - totalGastosMes;
   const efectivoDisponible = gananciaNetaMes;
   const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesMes === 0 && (gastos.length > 0 || nominas.length > 0));
 
@@ -309,7 +324,7 @@ export default function GastosAdminPage() {
           <div className="rounded-2xl bg-slate-800/80 border border-emerald-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Ganancia Neta Mensual</p>
             <p className={`text-2xl font-bold mt-1 tabular-nums ${gananciaNetaMes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fm(gananciaNetaMes)}</p>
-            <p className="text-xs text-slate-500 mt-1">Ingresos − Costo ventas − Gastos Admin − Nóminas</p>
+            <p className="text-xs text-slate-500 mt-1">Ingresos − Costo ventas − Gastos (incluye sueldos)</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-violet-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Efectivo Disponible</p>
@@ -357,7 +372,7 @@ export default function GastosAdminPage() {
             <label className="text-slate-400 text-sm">Selecciona periodo:</label>
             <select
               value={periodoResumen}
-              onChange={(e) => setPeriodoResumen(e.target.value as PeriodoResumen)}
+              onChange={(e) => aplicarPeriodo(e.target.value as PeriodoResumen)}
               className="rounded-xl bg-slate-700 border border-slate-600 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
             >
               <option value="diario">Diario</option>
@@ -376,7 +391,10 @@ export default function GastosAdminPage() {
             <input
               type="date"
               value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
+              onChange={(e) => {
+                setFechaDesde(e.target.value);
+                setPeriodoResumen('personalizado');
+              }}
               className="rounded-xl bg-slate-700/80 border border-slate-600 px-3 py-2 text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
             />
           </div>
@@ -385,7 +403,10 @@ export default function GastosAdminPage() {
             <input
               type="date"
               value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
+              onChange={(e) => {
+                setFechaHasta(e.target.value);
+                setPeriodoResumen('personalizado');
+              }}
               className="rounded-xl bg-slate-700/80 border border-slate-600 px-3 py-2 text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
             />
           </div>

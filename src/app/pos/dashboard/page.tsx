@@ -53,7 +53,7 @@ function esHoy(fechaStr: string): boolean {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { entrarAdminMode } = useAdminMode();
+  const { entrarAdminMode, isAdminMode } = useAdminMode();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +173,7 @@ export default function DashboardPage() {
             </svg>
             <span className="hidden sm:inline">Actualizar</span>
           </button>
-          <Link
+          {isAdminMode && <Link
             href="/pos/ventas"
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-medium shadow-lg shadow-emerald-500/20 transition touch-manipulation min-h-[44px]"
           >
@@ -181,7 +181,7 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <span className="hidden sm:inline">Historial</span>
-          </Link>
+          </Link>}
         </div>
       </header>
 
@@ -321,9 +321,11 @@ export default function DashboardPage() {
               <motion.div variants={itemArriba} className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
                 <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-700/80">
                   <h2 className="text-base font-semibold text-white">Ventas Recientes</h2>
-                  <Link href="/pos/ventas" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition touch-manipulation py-1">
-                    Ver todas →
-                  </Link>
+                  {isAdminMode && (
+                    <Link href="/pos/ventas" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition touch-manipulation py-1">
+                      Ver todas →
+                    </Link>
+                  )}
                 </div>
                 <div className="p-4 sm:p-6 min-h-[200px] sm:min-h-[220px]">
                   {ventasRecientes.length === 0 ? (

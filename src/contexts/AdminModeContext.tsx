@@ -1,8 +1,10 @@
 'use client';
 
 import { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import { hayTokenAdmin, salirModoAdmin } from '@/lib/api';
 
-const STORAGE_KEY = 'pos-admin-mode';
+// El modo administrador existe mientras haya un token de administrador válido
+// (lo entrega el servidor al verificar la contraseña y dura lo que la pestaña).
 
 type AdminModeContextType = {
   isAdminMode: boolean;
@@ -15,52 +17,32 @@ type AdminModeContextType = {
 const AdminModeContext = createContext<AdminModeContextType | null>(null);
 
 export function AdminModeProvider({ children }: { children: React.ReactNode }) {
-  const [isAdminMode, setState] = useState(false);
+  // Lectura inmediata para que al recargar una página de administrador no se redirija por error
+  const [isAdminMode, setState] = useState(() => typeof window !== 'undefined' && hayTokenAdmin());
   const [showMensajeIngreso, setShowMensajeIngreso] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(STORAGE_KEY) === '1';
-      setState(stored);
-    } catch {}
+    setState(hayTokenAdmin());
   }, []);
 
   const setAdminMode = useCallback((value: boolean) => {
-    setState(value);
-    try {
-      if (value) sessionStorage.setItem(STORAGE_KEY, '1');
-      else sessionStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    if (!value) setShowMensajeIngreso(false);
+    if (!value) {
+      salirModoAdmin();
+      setShowMensajeIngreso(false);
+    }
+    setState(value && hayTokenAdmin());
   }, []);
 
+  // Se llama después de verifyAdminPassword, que ya guardó el token
   const entrarAdminMode = useCallback(() => {
-    setState(true);
+    setState(hayTokenAdmin());
     setShowMensajeIngreso(true);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, '1');
-    } catch {}
   }, []);
 
   const cerrarMensajeIngreso = useCallback(() => setShowMensajeIngreso(false), []);
 
-  const value: AdminModeContextType = {
-    isAdminMode,
-    setAdminMode: (v) => {
-      setState(v);
-      try {
-        if (v) sessionStorage.setItem(STORAGE_KEY, '1');
-        else sessionStorage.removeItem(STORAGE_KEY);
-      } catch {}
-      if (!v) setShowMensajeIngreso(false);
-    },
-    entrarAdminMode,
-    showMensajeIngreso,
-    cerrarMensajeIngreso,
-  };
-
   return (
-    <AdminModeContext.Provider value={value}>
+    <AdminModeContext.Provider value={{ isAdminMode, setAdminMode, entrarAdminMode, showMensajeIngreso, cerrarMensajeIngreso }}>
       {children}
     </AdminModeContext.Provider>
   );

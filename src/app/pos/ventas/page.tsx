@@ -374,8 +374,8 @@ function VentasPageContent() {
         </head>
         <body>
           <div class="header">
-            <h2>Punto de Venta</h2>
-            <p><strong>Juan Mejía</strong></p>
+            <h2>ARISE Athletic Shop</h2>
+            <p><strong>Tu estilo. Tu fuerza. Tu evolución.</strong></p>
             <p><strong>Ticket corregido #${venta.id}</strong></p>
             <p class="sub">${new Date().toLocaleString('es-MX')}</p>
             ${venta.cliente ? `<div class="cliente"><strong>Cliente:</strong> ${venta.cliente}</div>` : ''}

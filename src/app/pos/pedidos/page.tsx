@@ -49,12 +49,12 @@ export default function PedidosAdminPage() {
   const [comprobanteVista, setComprobanteVista] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [bancoForm, setBancoForm] = useState({
-    titular: 'Andres Lopez Piña',
-    banco: 'Mercado Pago',
-    cuenta: '5428785233937142',
+    titular: '',
+    banco: '',
+    cuenta: '',
     clabe: '',
-    tarjeta: '5428785233937142',
-    whatsapp: '527121537999',
+    tarjeta: '',
+    whatsapp: '',
     costoEnvio: '10',
   });
   const [guardandoBanco, setGuardandoBanco] = useState(false);
@@ -72,7 +72,7 @@ export default function PedidosAdminPage() {
             cuenta: cfg.banco.cuenta || '',
             clabe: cfg.banco.clabe || '',
             tarjeta: cfg.banco.tarjeta || '',
-            whatsapp: cfg.whatsapp || '527121537999',
+            whatsapp: cfg.whatsapp || '',
             costoEnvio: String(cfg.costoEnvio ?? 10),
           });
         }

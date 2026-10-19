@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { getPedido, getPagosConfig, subirComprobante, confirmarStripePago, crearStripeCheckout, type Pedido, type PagosConfig, type EstadoPago } from '@/lib/api';
+import { getPedido, getPagosConfig, subirComprobante, confirmarStripePago, crearStripeCheckout, confirmarMercadoPago, crearMercadoPagoPreference, type Pedido, type PagosConfig, type EstadoPago } from '@/lib/api';
 import { formatearMoneda } from '@/lib/utils';
 import { Logo } from '@/components/Logo';
 import { TIENDA } from '@/lib/tienda';
@@ -40,6 +40,10 @@ function PedidoPage() {
   const search = useSearchParams();
   const id = Number(params.id);
   const pagoQuery = search.get('pago');
+  // Token secreto del enlace del pedido (lo exige el servidor para mostrarlo)
+  const token = search.get('t') || '';
+  // Mercado Pago regresa con el id del pago en la URL
+  const mpPaymentId = search.get('payment_id') || search.get('collection_id') || '';
   const router = useRouter();
   const { limpiar, reemplazar } = useCart();
 
@@ -55,12 +59,19 @@ function PedidoPage() {
 
   const cargar = useCallback(async () => {
     try {
-      let p = await getPedido(id);
+      let p = await getPedido(id, token);
       if (pagoQuery === 'exito' && p.metodoPago === 'stripe' && p.estadoPago !== 'pagado') {
         try {
-          p = await confirmarStripePago(id);
+          p = await confirmarStripePago(id, token);
         } catch {
           /* el webhook o un reintento posterior lo confirmarán */
+        }
+      }
+      if (p.metodoPago === 'mercadopago' && mpPaymentId && p.estadoPago !== 'pagado') {
+        try {
+          p = await confirmarMercadoPago(id, mpPaymentId, token);
+        } catch {
+          /* el webhook de Mercado Pago lo confirmará */
         }
       }
       const c = await getPagosConfig().catch(() => null);
@@ -71,7 +82,7 @@ function PedidoPage() {
     } finally {
       setCargando(false);
     }
-  }, [id, pagoQuery]);
+  }, [id, pagoQuery, token, mpPaymentId]);
 
   useEffect(() => {
     cargar();
@@ -85,12 +96,17 @@ function PedidoPage() {
 
   useEffect(() => {
     if (pagoQuery !== 'exito' || !pedido || pedido.estadoPago === 'pagado') return;
-    if (pedido.metodoPago !== 'stripe') return;
+    if (pedido.metodoPago !== 'stripe' && pedido.metodoPago !== 'mercadopago') return;
     let intentos = 0;
     const timer = setInterval(async () => {
       intentos += 1;
       try {
-        const p = await confirmarStripePago(id);
+        const p =
+          pedido.metodoPago === 'stripe'
+            ? await confirmarStripePago(id, token)
+            : mpPaymentId
+              ? await confirmarMercadoPago(id, mpPaymentId, token)
+              : await getPedido(id, token);
         setPedido(p);
         if (p.estadoPago === 'pagado' || intentos >= 8) clearInterval(timer);
       } catch {
@@ -98,14 +114,19 @@ function PedidoPage() {
       }
     }, 2500);
     return () => clearInterval(timer);
-  }, [pagoQuery, pedido?.estadoPago, pedido?.metodoPago, id]);
+  }, [pagoQuery, pedido?.estadoPago, pedido?.metodoPago, id, token, mpPaymentId]);
 
   const reintentarStripe = async () => {
     if (!pedido) return;
     setReintentando(true);
     try {
-      const { url } = await crearStripeCheckout(pedido.id);
-      window.location.href = url;
+      if (pedido.metodoPago === 'mercadopago') {
+        const { init_point } = await crearMercadoPagoPreference(pedido.id, token);
+        window.location.href = init_point;
+      } else {
+        const { url } = await crearStripeCheckout(pedido.id, token);
+        window.location.href = url;
+      }
     } catch (err) {
       setMensajeComprobante((err as Error).message || 'No se pudo reintentar el pago.');
       setReintentando(false);
@@ -133,7 +154,7 @@ function PedidoPage() {
         imagen: i.imagen,
       }))
     );
-    router.push(`/checkout?pedido=${pedido.id}`);
+    router.push(`/checkout?pedido=${pedido.id}${token ? `&t=${encodeURIComponent(token)}` : ''}`);
   };
 
   const onArchivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +173,7 @@ function PedidoPage() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const actualizado = await subirComprobante(pedido.id, base64);
+      const actualizado = await subirComprobante(pedido.id, base64, token);
       setPedido(actualizado);
       setMensajeComprobante('Comprobante guardado. Ahora envía la captura del movimiento por WhatsApp.');
       const wa = config?.whatsapp || TIENDA.whatsapp;
@@ -312,6 +333,11 @@ function PedidoPage() {
                 </li>
               </ol>
 
+              {!(banco && (banco.cuenta || banco.clabe || banco.titular || banco.tarjeta)) && (
+                <p className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+                  La tienda aún no publica sus datos bancarios. Escríbenos por WhatsApp para recibirlos.
+                </p>
+              )}
               {banco && (banco.cuenta || banco.clabe || banco.titular) && (
                 <div className="mt-4 rounded-xl border border-arise-neon/30 bg-arise-neon/10 p-4 space-y-2 text-sm">
                   <p className="font-extrabold text-arise-lavender">Datos de la cuenta</p>
@@ -387,14 +413,14 @@ function PedidoPage() {
           ) : (
             <div className="mt-4 rounded-xl bg-arise-neon/10 border border-arise-neon/40 p-4">
               <p className="font-bold text-arise-lavender">Estamos esperando la confirmación del pago…</p>
-              {pedido.metodoPago === 'stripe' && (
+              {(pedido.metodoPago === 'stripe' || pedido.metodoPago === 'mercadopago') && puedeEditar && (
                 <button
                   type="button"
                   onClick={reintentarStripe}
                   disabled={reintentando}
                   className="mt-3 mr-3 px-4 py-2 rounded-xl bg-arise-primary text-white text-sm font-bold hover:shadow-glow-strong disabled:opacity-60 cursor-pointer"
                 >
-                  {reintentando ? 'Redirigiendo…' : 'Pagar con tarjeta'}
+                  {reintentando ? 'Redirigiendo…' : pedido.metodoPago === 'mercadopago' ? 'Pagar con Mercado Pago' : 'Pagar con tarjeta'}
                 </button>
               )}
               <button onClick={cargar} className="mt-2 text-sm font-bold text-arise-lavender hover:underline">Actualizar estado</button>

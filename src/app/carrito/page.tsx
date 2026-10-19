@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/contexts/CartContext';
 import { formatearMoneda } from '@/lib/utils';
+import { getPagosConfig } from '@/lib/api';
 import { Logo } from '@/components/Logo';
 import { CheckoutPasos } from '@/components/CheckoutPasos';
 
@@ -25,6 +26,13 @@ function ImagenMini({ src, alt }: { src?: string; alt: string }) {
 
 export default function CarritoPage() {
   const { items, actualizarCantidad, quitar, limpiar, subtotal, totalUnidades } = useCart();
+  // Comisión de envío configurada en el POS (solo se cobra si eliges envío a domicilio)
+  const [costoEnvio, setCostoEnvio] = useState<number | null>(null);
+  useEffect(() => {
+    getPagosConfig()
+      .then((c) => setCostoEnvio(c.costoEnvio ?? null))
+      .catch(() => setCostoEnvio(null));
+  }, []);
 
   return (
     <div className="min-h-screen bg-arise-bg text-white">
@@ -148,9 +156,13 @@ export default function CarritoPage() {
                   <span>Productos ({totalUnidades % 1 === 0 ? totalUnidades : totalUnidades.toFixed(1)})</span>
                   <span className="font-semibold text-white">${formatearMoneda(subtotal)}</span>
                 </div>
-                <div className="mt-1 flex justify-between text-sm text-arise-muted">
+                <div className="mt-1 flex justify-between gap-3 text-sm text-arise-muted">
                   <span>Envío</span>
-                  <span>${formatearMoneda(10)} (repartidor)</span>
+                  <span className="text-right">
+                    {costoEnvio != null
+                      ? `Gratis al recoger · $${formatearMoneda(costoEnvio)} a domicilio`
+                      : 'Se calcula en el siguiente paso'}
+                  </span>
                 </div>
                 <div className="my-4 border-t border-arise-border" />
                 <div className="flex justify-between items-end">

@@ -58,7 +58,7 @@ export default function AccesoPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="usuario" className="block text-sm font-medium text-arise-text2 mb-2">
-                Usuario
+                Usuario o correo
               </label>
               <input
                 id="usuario"
@@ -66,7 +66,7 @@ export default function AccesoPage() {
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-arise-border bg-arise-bg2 focus:bg-arise-bg2 focus:border-arise-neon focus:ring-2 focus:ring-arise-neon/30 outline-none transition text-white placeholder-arise-muted"
-                placeholder="Ej. administrador"
+                placeholder="admin o correo del usuario"
                 autoComplete="username"
                 disabled={loading}
                 required
@@ -106,7 +106,7 @@ export default function AccesoPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-arise-muted bg-arise-bg rounded-lg px-3 py-2">
-            Credenciales: usuario <strong>admin</strong>, contraseña configurada en el servidor.
+            Entra con el usuario principal o con el correo de un usuario creado en Configuración.
           </p>
         </div>
 

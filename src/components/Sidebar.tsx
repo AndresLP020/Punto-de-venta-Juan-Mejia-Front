@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Logo } from '@/components/Logo';
 import { usePedidosNotif } from '@/contexts/PedidosNotifContext';
+import { cerrarSesion } from '@/lib/api';
 
 const items: { href: string; label: string; icon: string; adminOnly?: boolean }[] = [
   { href: '/pos/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -126,7 +127,10 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       <div className="p-3 border-t border-slate-800/80">
         <Link
           href="/acceso"
-          onClick={onClose}
+          onClick={() => {
+            cerrarSesion();
+            onClose?.();
+          }}
           className="flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/80 hover:text-white transition min-h-[44px] md:min-h-0 touch-manipulation"
         >
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AdminModeProvider, useAdminMode } from '@/contexts/AdminModeContext';
 import { PedidosNotifProvider } from '@/contexts/PedidosNotifContext';
+import { SesionProvider } from '@/contexts/SesionContext';
 import { Sidebar, MobileHeaderTitle } from '@/components/Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -84,6 +85,7 @@ export default function POSLayout({
   return (
     <ThemeProvider>
       <AdminModeProvider>
+      <SesionProvider>
       <PedidosNotifProvider>
         <div className="pos-layout flex h-screen bg-slate-950 overflow-hidden">
           <AdminRouteGuard />
@@ -110,6 +112,7 @@ export default function POSLayout({
           </main>
         </div>
       </PedidosNotifProvider>
+      </SesionProvider>
       </AdminModeProvider>
     </ThemeProvider>
   );

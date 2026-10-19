@@ -39,6 +39,11 @@ function CheckoutPage() {
   const router = useRouter();
   const search = useSearchParams();
   const pedidoIdEdit = Number(search.get('pedido') || 0) || 0;
+  const tokenEdit = search.get('t') || '';
+  const enlacePedido = (id: number, token?: string, extra = '') => {
+    const qs = [token ? `t=${encodeURIComponent(token)}` : '', extra].filter(Boolean).join('&');
+    return `/pedido/${id}${qs ? `?${qs}` : ''}`;
+  };
   const { items, subtotal, limpiar, reemplazar } = useCart();
   const [config, setConfig] = useState<PagosConfig | null>(null);
   const [cargandoPedido, setCargandoPedido] = useState(!!pedidoIdEdit);
@@ -68,11 +73,11 @@ function CheckoutPage() {
       return;
     }
     let vivo = true;
-    getPedido(pedidoIdEdit)
+    getPedido(pedidoIdEdit, tokenEdit)
       .then((p) => {
         if (!vivo) return;
         if (p.estadoPago === 'pagado' || p.estadoPago === 'rechazado') {
-          router.replace(`/pedido/${p.id}`);
+          router.replace(enlacePedido(p.id, tokenEdit));
           return;
         }
         reemplazar(
@@ -151,22 +156,29 @@ function CheckoutPage() {
         notas: notas.trim(),
       };
       const pedido = pedidoIdEdit
-        ? await putPedidoCheckout(pedidoIdEdit, payload)
+        ? await putPedidoCheckout(pedidoIdEdit, payload, tokenEdit)
         : await postPedido(payload);
+      const token = pedido.token || tokenEdit;
 
-      if (metodoPago === 'stripe') {
-        const { url } = await crearStripeCheckout(pedido.id);
-        window.location.href = url;
-        return;
-      }
-      if (metodoPago === 'mercadopago') {
-        const { init_point } = await crearMercadoPagoPreference(pedido.id);
-        window.location.href = init_point;
+      if (metodoPago === 'stripe' || metodoPago === 'mercadopago') {
+        try {
+          if (metodoPago === 'stripe') {
+            const { url } = await crearStripeCheckout(pedido.id, token);
+            window.location.href = url;
+          } else {
+            const { init_point } = await crearMercadoPagoPreference(pedido.id, token);
+            window.location.href = init_point;
+          }
+        } catch (err) {
+          // El pedido ya existe: lo mostramos para reintentar o cambiar de método sin duplicarlo
+          alert((err as Error).message || 'No se pudo abrir el pago en línea.');
+          router.push(enlacePedido(pedido.id, token, 'pago=cancelado'));
+        }
         return;
       }
       // Efectivo o transferencia: vamos a la página de confirmación
       limpiar();
-      router.push(`/pedido/${pedido.id}`);
+      router.push(enlacePedido(pedido.id, token));
     } catch (err) {
       setErrores([(err as Error).message || 'Ocurrió un error al procesar tu pedido.']);
       setEnviando(false);

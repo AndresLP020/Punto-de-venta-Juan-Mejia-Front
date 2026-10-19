@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { getProductos, getCategorias, getProveedores, postCategoria, deleteCategoria, postProducto, putProducto, deleteProducto, type Producto, type Proveedor } from '@/lib/api';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getProductos, getCategorias, getProveedores, postCategoria, deleteCategoria, postProducto, putProducto, deleteProducto, importarProductos, type Producto, type Proveedor } from '@/lib/api';
+import { useSesion } from '@/contexts/SesionContext';
+import { generarCSV, descargarArchivo, leerCSV, normalizarEncabezado } from '@/lib/csv';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 
@@ -36,6 +38,12 @@ function archivoADataURL(file: File): Promise<string> {
 
 export default function ProductosPage() {
   const { isAdminMode } = useAdminMode() ?? { isAdminMode: false };
+  const { puede } = useSesion();
+  const puedeEditar = puede('actualizarProductos');
+  const puedeBorrar = puede('borrarProductos');
+  const puedeDarDeBaja = puede('darDeBajaProductos');
+  const inputImportarRef = useRef<HTMLInputElement>(null);
+  const [importando, setImportando] = useState(false);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -177,6 +185,71 @@ export default function ProductosPage() {
       setError(err instanceof Error ? err.message : 'Error al guardar');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const exportarProductos = () => {
+    const nombreProveedor = (id?: number | null) => proveedores.find((pr) => pr.id === id)?.nombre ?? '';
+    const filas = productos.map((p) => [
+      p.codigo ?? '',
+      p.nombre,
+      p.categoria ?? '',
+      p.precio ?? 0,
+      p.costo ?? 0,
+      p.stock ?? 0,
+      p.stockMinimo ?? 0,
+      p.estado || 'Activo',
+      p.esGranel ? 'si' : 'no',
+      p.destacado ? 'si' : 'no',
+      p.descripcion ?? '',
+      p.proveedorId ?? '',
+      nombreProveedor(p.proveedorId),
+    ]);
+    const csv = generarCSV(
+      ['codigo', 'nombre', 'categoria', 'precio', 'costo', 'stock', 'stockMinimo', 'estado', 'esGranel', 'destacado', 'descripcion', 'proveedorId', 'proveedor'],
+      filas
+    );
+    descargarArchivo(csv, `productos-arise-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  // Columnas aceptadas al importar (sin importar mayúsculas, acentos o espacios)
+  const COLUMNAS_IMPORTAR: Record<string, string> = {
+    codigo: 'codigo', codigodebarras: 'codigo', nombre: 'nombre', producto: 'nombre', categoria: 'categoria',
+    precio: 'precio', precioventa: 'precio', costo: 'costo', preciocompra: 'costo', stock: 'stock', existencia: 'stock',
+    stockminimo: 'stockMinimo', minimo: 'stockMinimo', estado: 'estado', esgranel: 'esGranel', granel: 'esGranel',
+    destacado: 'destacado', descripcion: 'descripcion', proveedorid: 'proveedorId',
+  };
+
+  const importarCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!archivo) return;
+    setImportando(true);
+    try {
+      const filas = leerCSV(await archivo.text());
+      if (filas.length < 2) throw new Error('El archivo no tiene productos (la primera fila debe ser de encabezados).');
+      const campos = filas[0].map((h) => COLUMNAS_IMPORTAR[normalizarEncabezado(h)] ?? '');
+      if (!campos.includes('nombre') && !campos.includes('codigo')) {
+        throw new Error('El archivo debe tener al menos la columna "nombre" o "codigo".');
+      }
+      const productosCSV = filas.slice(1).map((f) => {
+        const obj: Record<string, string> = {};
+        campos.forEach((c, i) => {
+          if (c) obj[c] = (f[i] ?? '').trim();
+        });
+        return obj;
+      });
+      if (!confirm(`Se procesarán ${productosCSV.length} productos. Los que tengan un código existente se actualizarán y los demás se crearán. ¿Continuar?`)) return;
+      const r = await importarProductos(productosCSV);
+      alert(
+        `Importación terminada: ${r.creados} creados, ${r.actualizados} actualizados.` +
+          (r.errores.length ? `\n\nErrores (${r.errores.length}):\n${r.errores.slice(0, 10).join('\n')}` : '')
+      );
+      cargarDatos();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo importar el archivo');
+    } finally {
+      setImportando(false);
     }
   };
 
@@ -423,19 +496,36 @@ export default function ProductosPage() {
 
         {/* Botones de acción */}
         <div className="flex gap-2">
-          <button className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Exportar
-          </button>
-          <button className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Importar
-          </button>
           {isAdminMode && (
+            <>
+              <button
+                type="button"
+                onClick={exportarProductos}
+                disabled={productos.length === 0}
+                title="Descargar todos los productos en CSV (Excel)"
+                className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar
+              </button>
+              <button
+                type="button"
+                onClick={() => inputImportarRef.current?.click()}
+                disabled={importando}
+                title="Subir un CSV: actualiza los productos por código y crea los nuevos"
+                className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                {importando ? 'Importando…' : 'Importar'}
+              </button>
+              <input ref={inputImportarRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importarCSV} />
+            </>
+          )}
+          {puedeEditar && (
             <button
               onClick={abrirModalNuevo}
               className="px-4 py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white flex items-center gap-2 transition text-sm font-medium"
@@ -462,7 +552,7 @@ export default function ProductosPage() {
             <p className="text-slate-500 text-sm mt-1">
               {productos.length === 0 ? 'Agrega tu primer producto con el botón superior.' : 'Intenta ajustar los filtros de búsqueda.'}
             </p>
-            {productos.length === 0 && isAdminMode && (
+            {productos.length === 0 && puedeEditar && (
               <button onClick={abrirModalNuevo} className="mt-4 px-4 py-2.5 rounded-xl bg-green-500 text-white text-sm font-medium hover:bg-green-600">
                 Agregar producto
               </button>
@@ -482,7 +572,7 @@ export default function ProductosPage() {
                     <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">COSTO</th>
                     <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">STOCK</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300">ESTADO</th>
-                    {isAdminMode && <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">ACCIONES</th>}
+                    {(puedeEditar || puedeBorrar) && <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">ACCIONES</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -534,10 +624,10 @@ export default function ProductosPage() {
                             {p.estado || 'Activo'}
                           </span>
                         </td>
-                        {isAdminMode && (
+                        {(puedeEditar || puedeBorrar) && (
                           <td className="py-4 px-6">
                             <div className="flex items-center justify-end gap-2">
-                              <button
+                              {puedeEditar && <button
                                 onClick={() => abrirModalEditar(p)}
                                 className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition"
                                 title="Editar"
@@ -545,8 +635,8 @@ export default function ProductosPage() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                              </button>
-                              <button
+                              </button>}
+                              {puedeBorrar && <button
                                 onClick={() => eliminarProducto(p)}
                                 className="p-1.5 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
                                 title="Eliminar"
@@ -554,7 +644,7 @@ export default function ProductosPage() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
-                              </button>
+                              </button>}
                             </div>
                           </td>
                         )}
@@ -627,20 +717,24 @@ export default function ProductosPage() {
                     </span>
                   </div>
 
-                  {isAdminMode && (
+                  {(puedeEditar || puedeBorrar) && (
                     <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-700">
-                      <button
-                        onClick={() => abrirModalEditar(p)}
-                        className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => eliminarProducto(p)}
-                        className="p-2 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition text-sm"
-                      >
-                        Eliminar
-                      </button>
+                      {puedeEditar && (
+                        <button
+                          onClick={() => abrirModalEditar(p)}
+                          className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition text-sm"
+                        >
+                          Editar
+                        </button>
+                      )}
+                      {puedeBorrar && (
+                        <button
+                          onClick={() => eliminarProducto(p)}
+                          className="p-2 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -826,7 +920,9 @@ export default function ProductosPage() {
                   className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 >
                   <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
+                  <option value="Inactivo" disabled={!puedeDarDeBaja && form.estado !== 'Inactivo'}>
+                    Inactivo{!puedeDarDeBaja ? ' (sin permiso)' : ''}
+                  </option>
                 </select>
               </div>
 

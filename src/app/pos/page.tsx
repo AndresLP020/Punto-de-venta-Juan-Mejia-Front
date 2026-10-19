@@ -3,6 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
+import { useSesion } from '@/contexts/SesionContext';
+import { useAdminMode } from '@/contexts/AdminModeContext';
+
+const esc = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
 type CarritoItem = {
   producto: Producto;
@@ -29,6 +34,9 @@ function formatInputConComas(s: string): string {
 }
 
 export default function POSPage() {
+  const { puede } = useSesion();
+  const { isAdminMode } = useAdminMode();
+  const puedeVender = puede('hacerVentas');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -221,6 +229,10 @@ export default function POSPage() {
 
   const cobrar = async () => {
     if (carrito.length === 0) return;
+    if (!puedeVender) {
+      alert('Tu usuario no tiene permiso para hacer ventas.');
+      return;
+    }
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
     if (montoPago < 0 || montoPago > totalCarrito * 2) {
       alert('El monto pagado debe ser válido');
@@ -228,7 +240,7 @@ export default function POSPage() {
     }
     setEnviando(true);
     try {
-      await postVenta({
+      const venta = await postVenta({
         items: carrito.map((i) => ({
           id: i.producto.id,
           nombre: i.producto.nombre,
@@ -241,19 +253,21 @@ export default function POSPage() {
         cliente: clienteSeleccionado?.nombre || '',
         clienteId: clienteSeleccionado?.id,
       });
-      imprimirTicket();
+      imprimirTicket(venta?.id);
       setCarrito([]);
+      // Refresca existencias tras la venta
+      getProductos().then(setProductos).catch(() => {});
       setClienteSeleccionado(null);
       setMontoPagado('');
     } catch (err) {
       console.error(err);
-      alert('Error al registrar la venta');
+      alert(err instanceof Error ? err.message : 'Error al registrar la venta');
     } finally {
       setEnviando(false);
     }
   };
 
-  const imprimirTicket = () => {
+  const imprimirTicket = (ventaId?: number) => {
     const ventana = window.open('', '_blank');
     if (!ventana) return;
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
@@ -287,10 +301,11 @@ export default function POSPage() {
         </head>
         <body>
           <div class="header">
-            <h2>Punto de Venta</h2>
-            <p><strong>Juan Mejía</strong></p>
+            <h2>ARISE Athletic Shop</h2>
+            <p><strong>Tu estilo. Tu fuerza. Tu evolución.</strong></p>
+            ${ventaId ? `<p>Ticket #${ventaId}</p>` : ''}
             <p>${new Date().toLocaleString('es-MX')}</p>
-            ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${clienteSeleccionado.nombre}</div>` : ''}
+            ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${esc(clienteSeleccionado.nombre)}</div>` : ''}
           </div>
           
           <div style="margin-bottom: 15px;">
@@ -299,7 +314,7 @@ export default function POSPage() {
           
           ${carrito.map((i) => `
             <div class="item">
-              <div class="item-name">${i.producto.nombre}</div>
+              <div class="item-name">${esc(i.producto.nombre)}</div>
               <div class="item-detail">
                 ${i.producto.esGranel ? i.cantidad.toFixed(2) + ' kg' : 'Cantidad: ' + i.cantidad} × $${formatearMoneda(i.precioVenta)} = $${formatearMoneda(i.precioVenta * i.cantidad)}
               </div>
@@ -575,15 +590,17 @@ export default function POSPage() {
 
         {/* Panel lateral derecho */}
         <div className="w-full md:w-96 min-h-0 border-t md:border-t-0 md:border-l border-slate-700 bg-slate-800 flex flex-col flex-shrink-0">
-          {/* Botón Devoluciones */}
-          <div className="p-3 sm:p-4 border-b border-slate-700">
-            <Link
-              href="/pos/ventas?vista=devoluciones"
-              className="flex w-full items-center justify-center py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition text-center touch-manipulation min-h-[44px]"
-            >
-              Devoluciones
-            </Link>
-          </div>
+          {/* Botón Devoluciones (la sección es solo para administrador) */}
+          {isAdminMode && (
+            <div className="p-3 sm:p-4 border-b border-slate-700">
+              <Link
+                href="/pos/ventas?vista=devoluciones"
+                className="flex w-full items-center justify-center py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition text-center touch-manipulation min-h-[44px]"
+              >
+                Devoluciones
+              </Link>
+            </div>
+          )}
 
           {/* Selector de Cliente */}
           <div className="p-3 sm:p-4 border-b border-slate-700">
@@ -785,7 +802,8 @@ export default function POSPage() {
                   {/* Botón cobrar */}
                   <button
                     onClick={cobrar}
-                    disabled={carrito.length === 0 || enviando}
+                    disabled={carrito.length === 0 || enviando || !puedeVender}
+                    title={!puedeVender ? 'Tu usuario no tiene permiso para hacer ventas' : undefined}
                     className="w-full py-3.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg transition shadow-lg touch-manipulation min-h-[48px]"
                   >
                     {enviando ? 'Procesando...' : pendiente > 0 ? 'Registrar Venta con Crédito' : 'Cobrar e Imprimir'}

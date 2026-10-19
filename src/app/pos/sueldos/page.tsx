@@ -172,8 +172,9 @@ export default function SueldosPage() {
     return map;
   })();
 
-  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas) − Costo ventas − Gastos Admin − Nóminas
-  const gananciaNetaSemanal = ingresosTotalesSemanales - costosSemanales - totalGastosAdminSemana - totalNominasPagadasSemana;
+  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas) − Costo ventas − Gastos Admin
+  // Las nóminas y adelantos ya se registran como gastos (Sueldos): no se restan dos veces
+  const gananciaNetaSemanal = ingresosTotalesSemanales - costosSemanales - totalGastosAdminSemana;
   const efectivoDisponible = gananciaNetaSemanal;
   const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesSemanales === 0 && (empleados.length > 0 || gastosAdmin.length > 0));
 
@@ -375,7 +376,7 @@ export default function SueldosPage() {
             <p className={`text-2xl font-bold mt-1 tabular-nums ${gananciaNetaSemanal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {fm(gananciaNetaSemanal)}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">Ingresos − Costo ventas − Gastos Admin − Nóminas</p>
+            <p className="text-xs text-slate-500 mt-0.5">Ingresos − Costo ventas − Gastos (incluye sueldos)</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-violet-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Efectivo Disponible</p>

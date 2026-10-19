@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import type { Producto } from '@/lib/api';
 
-const STORAGE_KEY = 'nutri-ala-carrito';
+const STORAGE_KEY = 'arise-carrito';
+// Nombre anterior: se migra una sola vez para no perder carritos guardados
+const STORAGE_KEY_ANTERIOR = 'nutri-ala-carrito';
 
 export type CartItem = {
   id: number;
@@ -35,7 +37,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      let raw = localStorage.getItem(STORAGE_KEY);
+      const anterior = localStorage.getItem(STORAGE_KEY_ANTERIOR);
+      if (anterior != null) {
+        if (!raw) raw = anterior;
+        localStorage.removeItem(STORAGE_KEY_ANTERIOR);
+      }
       if (raw) setItems(JSON.parse(raw));
     } catch {}
     setCargado(true);
