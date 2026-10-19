@@ -245,7 +245,7 @@ export default function OfertasAdminPage() {
                     {o.productos && o.productos.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {o.productos.slice(0, 4).map((p, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 text-xs border border-blue-500/20">{p}</span>
+                          <span key={i} className="px-2 py-0.5 rounded bg-violet-500/15 text-violet-200 text-xs border border-violet-500/20">{p}</span>
                         ))}
                         {o.productos.length > 4 && <span className="text-xs text-slate-500">+{o.productos.length - 4}</span>}
                       </div>
@@ -260,7 +260,7 @@ export default function OfertasAdminPage() {
                       <button onClick={() => cambiarActiva(o)} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition">
                         {o.activa ? 'Desactivar' : 'Activar'}
                       </button>
-                      <button onClick={() => abrirEditar(o)} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white transition">
+                      <button onClick={() => abrirEditar(o)} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white transition">
                         Editar
                       </button>
                       <button onClick={() => eliminar(o)} className="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 transition">
@@ -292,7 +292,7 @@ export default function OfertasAdminPage() {
                   type="text"
                   value={form.titulo}
                   onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                  placeholder="Ej. 2x1 en pechuga de pollo"
+                  placeholder="Ej. 2x1 en playeras de entrenamiento"
                   className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
                   required
                 />

@@ -192,28 +192,28 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="relative overflow-hidden rounded-2xl border border-[#26406e] bg-gradient-to-br from-[#0e1c3c] via-[#12245080] to-[#0a1122] mb-6 sm:mb-8"
+          className="relative overflow-hidden rounded-2xl border border-[#34144D] bg-gradient-to-br from-[#1a0a2e] via-[#2a0f4a80] to-[#07050B] mb-6 sm:mb-8"
         >
           <div className="absolute inset-0 opacity-90 pointer-events-none">
             <HeroBackground3D />
           </div>
-          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-yellow-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-fuchsia-500/20 blur-3xl pointer-events-none" />
           <div className="relative z-10 px-5 sm:px-8 py-7 sm:py-10">
             <motion.p
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
-              className="text-yellow-300 font-semibold text-xs sm:text-sm uppercase tracking-widest"
+              className="text-fuchsia-300 font-display font-bold text-xs sm:text-sm uppercase tracking-[0.25em]"
             >
-              Nutri-Ala · Panel del negocio
+              ARISE Athletic Shop · Panel del negocio
             </motion.p>
             <motion.h2
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.25, duration: 0.5 }}
-              className="mt-1 text-2xl sm:text-4xl font-extrabold text-white drop-shadow"
+              className="mt-1 font-display uppercase tracking-wide text-3xl sm:text-5xl font-bold text-white drop-shadow-[0_0_18px_rgba(161,0,255,0.6)]"
             >
-              ¡Bienvenido de nuevo! 🐔
+              ¡Bienvenido de nuevo! 💪
             </motion.h2>
             <motion.p
               initial={{ opacity: 0 }}
@@ -278,9 +278,9 @@ export default function DashboardPage() {
                   <motion.div
                     animate={{ y: [0, -6, 0] }}
                     transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0"
                   >
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-violet-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </motion.div>

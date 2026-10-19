@@ -3,10 +3,42 @@
 @tailwind utilities;
 
 :root {
+  /* ARISE Athletic Shop · Backgrounds */
+  --background-primary: #07050B;
+  --background-secondary: #100719;
+  --background-card: #160A24;
+
+  /* Neon Brand Colors */
+  --primary-neon: #A100FF;
+  --secondary-neon: #7900FF;
+  --accent-fuchsia: #FF00E5;
+  --accent-magenta: #E000FF;
+  --accent-lavender: #D98BFF;
+  --purple-deep: #5200AE;
+
+  /* Typography */
+  --text-primary: #FFFFFF;
+  --text-secondary: #C9B8D9;
+  --text-muted: #9787A7;
+
+  /* Borders */
+  --border-default: #34144D;
+  --border-active: #A100FF;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #7900FF 0%, #A100FF 50%, #FF00E5 100%);
+  --gradient-electric: linear-gradient(90deg, #5200AE, #7900FF, #D98BFF);
+  --gradient-dark: linear-gradient(180deg, #07050B, #160A24);
+
+  /* Neon Glow */
+  --glow-primary: 0 0 15px rgba(161, 0, 255, 0.45);
+  --glow-strong: 0 0 30px rgba(161, 0, 255, 0.65);
+  --glow-fuchsia: 0 0 20px rgba(255, 0, 229, 0.45);
+
   --foreground: #0f172a;
-  --background: #f8fafc;
+  --background: #07050B;
   --card-bg: #ffffff;
-  --border: #e2e8f0;
+  --border: #34144D;
   --radius: 0.75rem;
   --radius-lg: 1rem;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -23,13 +55,122 @@ body {
 }
 
 *:focus-visible {
-  outline: 2px solid rgb(34 197 94);
+  outline: 2px solid var(--primary-neon);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgb(34 197 94 / 0.2);
+  background: rgb(161 0 255 / 0.35);
   color: inherit;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* =====================================================================
+   ARISE Athletic Shop · Componentes visuales de la tienda
+   ===================================================================== */
+@layer components {
+  /* Título con gradiente neón (animación discreta) */
+  .text-gradient-neon {
+    background-image: linear-gradient(90deg, #A100FF, #FF00E5, #D98BFF, #A100FF);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradientX 8s ease infinite;
+  }
+
+  /* Botón principal: gradiente eléctrico + glow */
+  .btn-neon {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-display text-base font-bold uppercase tracking-wider text-white transition duration-300;
+    background-image: var(--gradient-primary);
+    background-size: 150% 150%;
+    box-shadow: var(--glow-primary);
+  }
+  .btn-neon:hover {
+    box-shadow: var(--glow-strong);
+    background-position: 100% 50%;
+    transform: translateY(-1px) scale(1.02);
+  }
+  .btn-neon:active {
+    transform: scale(0.98);
+  }
+  .btn-neon:disabled {
+    @apply cursor-not-allowed opacity-60;
+    transform: none;
+  }
+
+  /* Botón secundario: contorno neón */
+  .btn-outline-neon {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-arise-neon/70 bg-arise-neon/5 px-6 py-3 font-display text-base font-bold uppercase tracking-wider text-white transition duration-300;
+  }
+  .btn-outline-neon:hover {
+    @apply border-arise-fuchsia bg-arise-neon/15;
+    box-shadow: var(--glow-fuchsia);
+    transform: translateY(-1px);
+  }
+
+  /* Tarjeta oscura con borde luminoso al hover */
+  .card-neon {
+    @apply rounded-2xl border border-arise-border bg-arise-card transition duration-300;
+  }
+  .card-neon-hover:hover {
+    @apply border-arise-neon/80;
+    box-shadow: 0 0 0 1px rgb(161 0 255 / 0.35), 0 18px 40px -18px rgb(161 0 255 / 0.65);
+  }
+
+  /* Etiqueta promocional fucsia */
+  .tag-fuchsia {
+    @apply inline-flex items-center rounded-full bg-arise-fuchsia px-3 py-1 font-display text-sm font-bold uppercase tracking-wide text-white;
+    box-shadow: var(--glow-fuchsia);
+  }
+
+  /* Campo de formulario oscuro */
+  .input-neon {
+    @apply w-full rounded-xl border border-arise-border bg-arise-bg2 text-white placeholder-arise-muted outline-none transition;
+  }
+  .input-neon:focus {
+    @apply border-arise-neon;
+    box-shadow: 0 0 0 3px rgb(161 0 255 / 0.25);
+  }
+
+  /* Encabezado de sección */
+  .eyebrow-neon {
+    @apply font-display text-sm font-bold uppercase tracking-[0.25em] text-arise-fuchsia;
+  }
+  .heading-display {
+    @apply font-display font-bold uppercase leading-[0.95] tracking-tight text-white;
+  }
+
+  /* Rejilla tecnológica de fondo */
+  .bg-grid-neon {
+    background-image:
+      linear-gradient(rgb(161 0 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(161 0 255 / 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
+
+@keyframes gradientX {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .text-gradient-neon,
+  .animate-glow-pulse,
+  .animate-gradient-x {
+    animation: none !important;
+  }
+  .btn-neon:hover,
+  .btn-outline-neon:hover {
+    transform: none;
+  }
 }
 
 @layer utilities {
@@ -38,7 +179,7 @@ body {
   }
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(71 85 105) transparent;
+    scrollbar-color: rgb(82 0 174) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
@@ -48,7 +189,7 @@ body {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgb(71 85 105);
+    background: rgb(82 0 174);
     border-radius: 3px;
   }
   .touch-manipulation {
@@ -64,42 +205,42 @@ body {
 
 /* Modo claro POS */
 .theme-light .pos-layout {
-  background: #f8fafc !important;
+  background: #FAF7FD !important;
 }
 .theme-light .pos-layout aside {
-  background: #e2e8f0 !important;
-  border-color: #cbd5e1 !important;
+  background: #EDE4F6 !important;
+  border-color: #DCCDEB !important;
 }
 .theme-light .pos-layout main {
-  background: #f1f5f9 !important;
+  background: #F4EEFA !important;
 }
 .theme-light .pos-layout .pos-main-inner {
-  background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+  background: linear-gradient(to bottom, #FAF7FD, #F4EEFA) !important;
 }
 .theme-light .pos-layout .text-white {
-  color: #0f172a !important;
+  color: #1A0B2E !important;
 }
 .theme-light .pos-layout .text-slate-400 {
-  color: #475569 !important;
+  color: #5B4A6E !important;
 }
 .theme-light .pos-layout .text-slate-300 {
-  color: #334155 !important;
+  color: #3F2D55 !important;
 }
 .theme-light .pos-layout .text-slate-500 {
-  color: #64748b !important;
+  color: #7A6890 !important;
 }
 .theme-light .pos-layout .bg-slate-800\/80,
 .theme-light .pos-layout .bg-slate-800 {
-  background-color: rgb(226 232 240) !important;
+  background-color: rgb(237 228 246) !important;
 }
 .theme-light .pos-layout .bg-slate-900 {
-  background-color: rgb(203 213 225) !important;
+  background-color: rgb(220 205 235) !important;
 }
 .theme-light .pos-layout .border-slate-700\/80,
 .theme-light .pos-layout .border-slate-800\/80,
 .theme-light .pos-layout .border-slate-700,
 .theme-light .pos-layout .border-slate-800 {
-  border-color: rgb(203 213 225) !important;
+  border-color: rgb(220 205 235) !important;
 }
 .theme-light .pos-layout a:hover,
 .theme-light .pos-layout button:hover {
@@ -107,24 +248,24 @@ body {
 }
 
 /* =====================================================================
-   Nutri-Ala · Rediseño visual del Punto de Venta (SOLO ESTILOS)
-   Paleta de marca: navy profundo + acento azul + dorado.
+   ARISE Athletic Shop · Tema visual del Punto de Venta (SOLO ESTILOS)
+   Paleta de marca: negro profundo + morado neón + fucsia.
    No modifica lógica ni estructura; solo reasigna colores/tonos.
    ===================================================================== */
 .theme-dark .pos-layout {
-  --na-bg: #0a1122;
-  --na-panel: #0e1a30;
-  --na-panel-2: #101f3b;
-  --na-card: #16264a;
-  --na-card-2: #1f325b;
-  --na-elevated: #2a4373;
-  --na-border: #26406e;
-  --na-border-soft: #1d3058;
-  --na-accent: #2f6bff;
-  --na-accent-600: #205fe6;
-  --na-accent-soft: rgb(47 107 255 / 0.16);
-  --na-accent-text: #8fb2ff;
-  --na-gold: #f7c948;
+  --na-bg: #07050B;
+  --na-panel: #100719;
+  --na-panel-2: #130921;
+  --na-card: #160A24;
+  --na-card-2: #21103A;
+  --na-elevated: #2D1650;
+  --na-border: #34144D;
+  --na-border-soft: #26103B;
+  --na-accent: #A100FF;
+  --na-accent-600: #7900FF;
+  --na-accent-soft: rgb(161 0 255 / 0.16);
+  --na-accent-text: #D98BFF;
+  --na-gold: #FF00E5;
 }
 
 /* ---- Superficies base ---- */
@@ -133,25 +274,25 @@ body {
 .theme-dark .pos-layout .bg-slate-950 { background-color: var(--na-bg); }
 
 .theme-dark .pos-layout .bg-slate-900 { background-color: var(--na-panel); }
-.theme-dark .pos-layout .bg-slate-900\/50 { background-color: rgb(14 26 48 / 0.6); }
-.theme-dark .pos-layout .bg-slate-900\/60 { background-color: rgb(14 26 48 / 0.7); }
-.theme-dark .pos-layout .bg-slate-900\/90 { background-color: rgb(14 26 48 / 0.92); }
+.theme-dark .pos-layout .bg-slate-900\/50 { background-color: rgb(16 7 25 / 0.6); }
+.theme-dark .pos-layout .bg-slate-900\/60 { background-color: rgb(16 7 25 / 0.7); }
+.theme-dark .pos-layout .bg-slate-900\/90 { background-color: rgb(16 7 25 / 0.92); }
 
 .theme-dark .pos-layout .bg-slate-800,
 .theme-dark .pos-layout .bg-slate-800\/80 { background-color: var(--na-card); }
-.theme-dark .pos-layout .bg-slate-800\/50 { background-color: rgb(22 38 74 / 0.65); }
-.theme-dark .pos-layout .bg-slate-800\/30 { background-color: rgb(22 38 74 / 0.45); }
+.theme-dark .pos-layout .bg-slate-800\/50 { background-color: rgb(22 10 36 / 0.65); }
+.theme-dark .pos-layout .bg-slate-800\/30 { background-color: rgb(22 10 36 / 0.45); }
 
 .theme-dark .pos-layout .bg-slate-700,
 .theme-dark .pos-layout .bg-slate-700\/80 { background-color: var(--na-card-2); }
-.theme-dark .pos-layout .bg-slate-700\/50 { background-color: rgb(31 50 91 / 0.6); }
-.theme-dark .pos-layout .bg-slate-700\/60 { background-color: rgb(31 50 91 / 0.7); }
-.theme-dark .pos-layout .bg-slate-700\/30 { background-color: rgb(31 50 91 / 0.4); }
+.theme-dark .pos-layout .bg-slate-700\/50 { background-color: rgb(33 16 58 / 0.6); }
+.theme-dark .pos-layout .bg-slate-700\/60 { background-color: rgb(33 16 58 / 0.7); }
+.theme-dark .pos-layout .bg-slate-700\/30 { background-color: rgb(33 16 58 / 0.4); }
 .theme-dark .pos-layout .bg-slate-600 { background-color: var(--na-elevated); }
 
 /* Fondo del área principal (gradiente) */
 .theme-dark .pos-layout .pos-main-inner {
-  background: linear-gradient(to bottom, rgb(14 26 48 / 0.85), var(--na-bg)) !important;
+  background: linear-gradient(to bottom, rgb(16 7 25 / 0.85), var(--na-bg)) !important;
 }
 
 /* ---- Bordes ---- */
@@ -163,7 +304,7 @@ body {
 .theme-dark .pos-layout .border-slate-800\/80,
 .theme-dark .pos-layout .border-slate-600,
 .theme-dark .pos-layout .border-slate-600\/80 { border-color: var(--na-border); }
-.theme-dark .pos-layout .border-slate-500 { border-color: #3a548a; }
+.theme-dark .pos-layout .border-slate-500 { border-color: #4A1F6E; }
 
 /* ---- Hover de superficies ---- */
 .theme-dark .pos-layout .hover\:bg-slate-700:hover,
@@ -180,8 +321,8 @@ body {
 /* ---- Acento primario: emerald / green -> azul de marca ---- */
 .theme-dark .pos-layout .bg-emerald-500,
 .theme-dark .pos-layout .bg-green-500 { background-color: var(--na-accent); }
-.theme-dark .pos-layout .bg-green-500\/90 { background-color: rgb(47 107 255 / 0.9); }
-.theme-dark .pos-layout .bg-emerald-500\/80 { background-color: rgb(47 107 255 / 0.85); }
+.theme-dark .pos-layout .bg-green-500\/90 { background-color: rgb(161 0 255 / 0.9); }
+.theme-dark .pos-layout .bg-emerald-500\/80 { background-color: rgb(161 0 255 / 0.85); }
 .theme-dark .pos-layout .hover\:bg-emerald-600:hover,
 .theme-dark .pos-layout .hover\:bg-green-600:hover { background-color: var(--na-accent-600); }
 .theme-dark .pos-layout .bg-emerald-500\/20,
@@ -199,18 +340,18 @@ body {
 .theme-dark .pos-layout .border-emerald-500\/30,
 .theme-dark .pos-layout .border-emerald-500\/20,
 .theme-dark .pos-layout .border-green-500\/30,
-.theme-dark .pos-layout .border-green-500\/20 { border-color: rgb(47 107 255 / 0.35); }
+.theme-dark .pos-layout .border-green-500\/20 { border-color: rgb(161 0 255 / 0.35); }
 
 .theme-dark .pos-layout .border-emerald-500,
 .theme-dark .pos-layout .border-green-500 { border-color: var(--na-accent); }
 .theme-dark .pos-layout .border-t-emerald-500 { border-top-color: var(--na-accent); }
-.theme-dark .pos-layout .border-emerald-500\/30 { border-color: rgb(47 107 255 / 0.35); }
+.theme-dark .pos-layout .border-emerald-500\/30 { border-color: rgb(161 0 255 / 0.35); }
 
 .theme-dark .pos-layout .ring-emerald-500,
 .theme-dark .pos-layout .focus\:ring-emerald-500:focus,
 .theme-dark .pos-layout .focus\:ring-green-500:focus { --tw-ring-color: var(--na-accent); }
 .theme-dark .pos-layout .focus\:border-emerald-500:focus { border-color: var(--na-accent); }
-.theme-dark .pos-layout .shadow-emerald-500\/20 { --tw-shadow-color: rgb(47 107 255 / 0.28); }
+.theme-dark .pos-layout .shadow-emerald-500\/20 { --tw-shadow-color: rgb(161 0 255 / 0.28); }
 
 /* Check de casillas / radios con acento */
 .theme-dark .pos-layout .text-emerald-500,
@@ -221,3 +362,48 @@ body {
 .theme-dark .pos-layout .rounded-xl.border {
   box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.45);
 }
+
+/* ---- Sin tonos azules: grises "slate" -> neutros violeta ---- */
+.theme-dark .pos-layout .text-slate-200 { color: #E9DDF5; }
+.theme-dark .pos-layout .text-slate-300 { color: #C9B8D9; }
+.theme-dark .pos-layout .text-slate-400 { color: #A897BA; }
+.theme-dark .pos-layout .text-slate-500 { color: #8A7A9C; }
+.theme-dark .pos-layout .text-slate-600 { color: #6E5E80; }
+.theme-dark .pos-layout .placeholder-slate-500::placeholder,
+.theme-dark .pos-layout .placeholder-slate-400::placeholder { color: #8A7A9C; }
+.theme-dark .pos-layout .hover\:text-slate-200:hover,
+.theme-dark .pos-layout .hover\:text-slate-300:hover { color: #E9DDF5; }
+.theme-dark .pos-layout .bg-slate-500 { background-color: #4A2D6B; }
+.theme-dark .pos-layout .divide-slate-700 > :not([hidden]) ~ :not([hidden]),
+.theme-dark .pos-layout .divide-slate-800 > :not([hidden]) ~ :not([hidden]) { border-color: var(--na-border); }
+.theme-dark .pos-layout .ring-slate-700,
+.theme-dark .pos-layout .ring-slate-600 { --tw-ring-color: var(--na-border); }
+.theme-dark .pos-layout aside { box-shadow: 8px 0 30px -18px rgb(161 0 255 / 0.5); }
+
+/* Tipografía deportiva en títulos del POS */
+.pos-layout h1,
+.pos-layout h2 {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Modo claro: acento de marca (en lugar de verde) ---- */
+.theme-light .pos-layout .bg-emerald-500,
+.theme-light .pos-layout .bg-green-500 { background-color: #A100FF; }
+.theme-light .pos-layout .hover\:bg-emerald-600:hover,
+.theme-light .pos-layout .hover\:bg-green-600:hover { background-color: #7900FF; }
+.theme-light .pos-layout .bg-emerald-500\/20,
+.theme-light .pos-layout .bg-emerald-500\/10,
+.theme-light .pos-layout .bg-green-500\/20,
+.theme-light .pos-layout .bg-green-500\/10 { background-color: rgb(161 0 255 / 0.12); }
+.theme-light .pos-layout .text-emerald-400,
+.theme-light .pos-layout .text-emerald-300,
+.theme-light .pos-layout .text-emerald-500,
+.theme-light .pos-layout .text-green-400,
+.theme-light .pos-layout .text-green-500 { color: #7900FF; }
+.theme-light .pos-layout .border-emerald-500,
+.theme-light .pos-layout .border-green-500 { border-color: #A100FF; }
+.theme-light .pos-layout .border-t-emerald-500 { border-top-color: #A100FF; }
+.theme-light .pos-layout .focus\:ring-emerald-500:focus { --tw-ring-color: #A100FF; }
+.theme-light .pos-layout .bg-slate-950 { background-color: #FAF7FD; }
+.theme-light .pos-layout .text-slate-200 { color: #3F2D55; }

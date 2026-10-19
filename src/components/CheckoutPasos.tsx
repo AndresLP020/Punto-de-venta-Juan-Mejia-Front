@@ -17,7 +17,7 @@ export function CheckoutPasos({ actual }: { actual: 1 | 2 | 3 }) {
             <li key={paso.n} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <span
                 className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-extrabold flex-shrink-0 ${
-                  hecho || activo ? 'bg-[#0b3d91] text-white' : 'bg-slate-200 text-slate-500'
+                  hecho || activo ? 'bg-arise-primary text-white' : 'bg-arise-border text-arise-muted'
                 }`}
               >
                 {hecho ? (
@@ -28,10 +28,10 @@ export function CheckoutPasos({ actual }: { actual: 1 | 2 | 3 }) {
                   paso.n
                 )}
               </span>
-              <span className={`text-xs sm:text-sm font-semibold truncate ${activo ? 'text-[#0b3d91]' : 'text-slate-500'}`}>
+              <span className={`text-xs sm:text-sm font-semibold truncate ${activo ? 'text-arise-lavender' : 'text-arise-muted'}`}>
                 {paso.label}
               </span>
-              {i < PASOS.length - 1 && <span className="hidden sm:block flex-1 h-px bg-slate-200" aria-hidden="true" />}
+              {i < PASOS.length - 1 && <span className="hidden sm:block flex-1 h-px bg-arise-border" aria-hidden="true" />}
             </li>
           );
         })}

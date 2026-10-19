@@ -7,7 +7,6 @@ import {
   getProductos,
   getNominas,
   getGastosAdmin,
-  getMovimientosLienzo,
   getAdelantos,
   postEmpleado,
   putEmpleado,
@@ -52,7 +51,6 @@ export default function SueldosPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nominas, setNominas] = useState<{ id: number; fecha: string; total: number; items: { empleadoId: number; monto: number; semana?: string; adelantoDescontado?: number }[] }[]>([]);
   const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
   const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalTrabajador, setModalTrabajador] = useState(false);
@@ -72,13 +70,12 @@ export default function SueldosPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [e, v, p, n, g, lienzo, a] = await Promise.all([
+      const [e, v, p, n, g, a] = await Promise.all([
         getEmpleados(),
         getVentas(),
         getProductos(),
         getNominas(),
         getGastosAdmin(),
-        getMovimientosLienzo().catch(() => []),
         getAdelantos(),
       ]);
       setEmpleados(e);
@@ -86,7 +83,6 @@ export default function SueldosPage() {
       setProductos(p);
       setNominas(n);
       setGastosAdmin(g);
-      setMovimientosLienzo(lienzo);
       setAdelantos(a);
     } catch {
       setEmpleados([]);
@@ -94,7 +90,6 @@ export default function SueldosPage() {
       setProductos([]);
       setNominas([]);
       setGastosAdmin([]);
-      setMovimientosLienzo([]);
       setAdelantos([]);
     } finally {
       setLoading(false);
@@ -116,14 +111,7 @@ export default function SueldosPage() {
     (s, v) => s + (v.pagado ?? v.total ?? 0),
     0
   );
-  const ingresosLienzoSemana = movimientosLienzo
-    .filter((m) => m.tipo === 'ingreso')
-    .filter((m) => {
-      const d = new Date(m.fecha);
-      return d >= inicioSemana && d <= ahora;
-    })
-    .reduce((s, m) => s + m.monto, 0);
-  const ingresosTotalesSemanales = ingresosSemanales + ingresosLienzoSemana;
+  const ingresosTotalesSemanales = ingresosSemanales;
 
   const costosSemanales = ventasSemanales.reduce((sum, venta) => {
     const porcentaje = venta.total > 0 ? (venta.pagado ?? venta.total) / venta.total : 1;
@@ -184,7 +172,7 @@ export default function SueldosPage() {
     return map;
   })();
 
-  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas + Lienzo Charro) − Costo ventas − Gastos Admin − Nóminas
+  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas) − Costo ventas − Gastos Admin − Nóminas
   const gananciaNetaSemanal = ingresosTotalesSemanales - costosSemanales - totalGastosAdminSemana - totalNominasPagadasSemana;
   const efectivoDisponible = gananciaNetaSemanal;
   const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesSemanales === 0 && (empleados.length > 0 || gastosAdmin.length > 0));
@@ -399,7 +387,7 @@ export default function SueldosPage() {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <button
             onClick={() => abrirModalTrabajador()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-lg transition"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-medium shadow-lg transition"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -587,7 +575,7 @@ export default function SueldosPage() {
               <p className="text-slate-500 text-sm mt-1">Agrega trabajadores con el botón superior para calcular nómina.</p>
               <button
                 onClick={() => abrirModalTrabajador()}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium"
               >
                 + Agregar Trabajador
               </button>
@@ -703,7 +691,7 @@ export default function SueldosPage() {
                   type="text"
                   value={form.puesto}
                   onChange={(e) => setForm((f) => ({ ...f, puesto: e.target.value }))}
-                  placeholder="Ej. Cajero, Repartidor"
+                  placeholder="Ej. Cajero, Asesor de ventas"
                   className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>

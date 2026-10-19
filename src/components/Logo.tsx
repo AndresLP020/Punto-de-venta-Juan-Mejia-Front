@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { LOGO_SRC } from '@/lib/tienda';
 
 /**
- * Logo de Nutri-Ala.
+ * Logo oficial de ARISE Athletic Shop.
  *
- * El logo oficial se carga desde `public/nutri-ala-logo.jpeg`.
- * Si el archivo no existe, se muestra un marcador de posición
- * con la temática de pollo y los colores de la marca.
+ * Se carga desde `public/arise-logo.png` respetando sus proporciones.
+ * Si el archivo no existe, se muestra un marcador de posición neutro
+ * (no sustituye el logo por otro diseño).
  */
 export function Logo({
   size = 96,
@@ -25,34 +26,32 @@ export function Logo({
       {hayLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src="/nutri-ala-logo.jpeg"
-          alt="Nutri-Ala"
+          src={LOGO_SRC}
+          alt="ARISE Athletic Shop"
           width={size}
           height={size}
           onError={() => setHayLogo(false)}
-          style={{ height: size, width: 'auto' }}
-          className="object-contain drop-shadow-md"
+          style={{ height: size, width: 'auto', maxWidth: 'none' }}
+          className="object-contain"
         />
       ) : (
         <div
           style={{ height: size, width: size }}
-          className="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-amber-400 bg-white text-center"
-          title="Espacio reservado para el logo oficial (public/nutri-ala-logo.png)"
+          className="relative flex flex-col items-center justify-center rounded-full border-2 border-dashed border-arise-neon/70 bg-arise-card text-center"
+          title="Espacio reservado para el logo oficial (public/arise-logo.png)"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth={1.6} style={{ width: size * 0.5, height: size * 0.5 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-          </svg>
-          <span className="mt-1 px-1 text-[9px] font-semibold leading-none text-slate-400">
-            Logo aquí
+          <span
+            className="font-display font-bold uppercase leading-none text-arise-lavender"
+            style={{ fontSize: Math.max(8, size * 0.16) }}
+          >
+            Logo
           </span>
         </div>
       )}
       {showText && (
         <div className="leading-tight">
-          <span className="block text-xl font-extrabold tracking-tight text-slate-900">
-            Nutri<span className="text-red-600">-</span>Ala
-          </span>
-          <span className="block text-xs font-medium text-blue-700">el buen sabor del pollo…</span>
+          <span className="block font-display text-xl font-bold uppercase tracking-wider text-white">ARISE</span>
+          <span className="block text-[11px] font-medium uppercase tracking-[0.2em] text-arise-lavender">Athletic Shop</span>
         </div>
       )}
     </div>

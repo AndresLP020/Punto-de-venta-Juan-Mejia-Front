@@ -365,7 +365,7 @@ function VentasPageContent() {
             .total-amount { font-weight: bold; }
             .pago { color: #059669; }
             .pendiente { color: #d97706; font-weight: bold; }
-            .devolver { color: #2563eb; font-weight: bold; }
+            .devolver { color: #7900FF; font-weight: bold; }
             .modif { margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px; font-size: 11px; }
             .modif h4 { margin: 0 0 8px 0; font-size: 12px; }
             .modif ul { margin: 0; padding-left: 18px; }
@@ -923,8 +923,8 @@ function VentasPageContent() {
                   if (seLeDebeAlCliente > 0) {
                     return (
                       <div className="flex justify-between text-sm pt-2 border-t border-slate-600">
-                        <span className="text-blue-400">Se le debe al cliente:</span>
-                        <span className="text-blue-400 font-bold">${formatearMoneda(seLeDebeAlCliente)}</span>
+                        <span className="text-violet-300">Se le debe al cliente:</span>
+                        <span className="text-violet-300 font-bold">${formatearMoneda(seLeDebeAlCliente)}</span>
                       </div>
                     );
                   }

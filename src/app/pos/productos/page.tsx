@@ -331,7 +331,7 @@ export default function ProductosPage() {
             <>
               <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                 <p className="text-xs text-slate-400 mb-1">Valor Inventario</p>
-                <p className="text-lg font-bold text-blue-400">${formatearMoneda(estadisticas.valorInventario)}</p>
+                <p className="text-lg font-bold text-violet-300">${formatearMoneda(estadisticas.valorInventario)}</p>
               </div>
               <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                 <p className="text-xs text-slate-400 mb-1">Valor Venta</p>
@@ -669,7 +669,7 @@ export default function ProductosPage() {
                   type="text"
                   value={form.nombre}
                   onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                  placeholder="Ej. Café Americano"
+                  placeholder="Ej. Leggings deportivos de compresión"
                   className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none"
                   required
                 />
@@ -755,7 +755,7 @@ export default function ProductosPage() {
                   />
                   <span className="text-slate-300 text-sm font-medium">Venta a granel (por peso)</span>
                 </label>
-                <p className="text-slate-500 text-xs mt-1">Para productos que se venden por kg (pollo, carnes, frutas, etc.)</p>
+                <p className="text-slate-500 text-xs mt-1">Para productos que se venden por kg (por ejemplo, artículos a granel)</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

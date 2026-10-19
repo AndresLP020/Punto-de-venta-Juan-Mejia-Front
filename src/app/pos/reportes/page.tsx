@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getVentas, getProductos, getGastosAdmin, getNominas, getMovimientosLienzo, type Producto } from '@/lib/api';
+import { getVentas, getProductos, getGastosAdmin, getNominas, type Producto } from '@/lib/api';
 import { formatearMoneda } from '@/lib/utils';
 
 type Venta = {
@@ -30,7 +30,6 @@ export default function ReportesPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
   const [nominas, setNominas] = useState<{ fecha: string; total: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('año');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -40,24 +39,21 @@ export default function ReportesPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [v, p, g, n, lienzo] = await Promise.all([
+      const [v, p, g, n] = await Promise.all([
         getVentas(),
         getProductos(),
         getGastosAdmin(),
         getNominas(),
-        getMovimientosLienzo().catch(() => []),
       ]);
       setVentas(v);
       setProductos(p);
       setGastosAdmin(g);
       setNominas(n);
-      setMovimientosLienzo(lienzo);
     } catch {
       setVentas([]);
       setProductos([]);
       setGastosAdmin([]);
       setNominas([]);
-      setMovimientosLienzo([]);
     } finally {
       setLoading(false);
     }
@@ -119,17 +115,10 @@ export default function ReportesPage() {
     // Total de ventas (todas las transacciones del período)
     const totalVentas = ventasFiltradas.length;
 
-    // Ingresos totales = ventas pagadas + ingresos Lienzo Charro del período
+    // Ingresos totales = ventas pagadas del período
     const ventasConPago = ventasFiltradas.filter((v) => (v.pagado || v.total || 0) > 0);
     const ingresosVentas = ventasConPago.reduce((sum, v) => sum + (v.pagado || v.total || 0), 0);
-    const ingresosLienzoPeriodo = movimientosLienzo
-      .filter((m) => m.tipo === 'ingreso')
-      .filter((m) => {
-        const d = new Date(m.fecha);
-        return d >= inicioPeriodo && d <= finPeriodo;
-      })
-      .reduce((s, m) => s + m.monto, 0);
-    const ingresosTotales = ingresosVentas + ingresosLienzoPeriodo;
+    const ingresosTotales = ingresosVentas;
     
     // Costo de productos vendidos: usar costo guardado en ítem (al registrar venta) o costo actual del producto
     const costoProductos = ventasConPago.reduce((sum, venta) => {
@@ -425,8 +414,8 @@ export default function ReportesPage() {
           {/* Total Ventas */}
           <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-elevated hover:border-slate-600/80 transition">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                <svg className="w-6 h-6 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
@@ -497,8 +486,8 @@ export default function ReportesPage() {
           {/* Venta Promedio */}
           <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-elevated hover:border-slate-600/80 transition">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
+                <svg className="w-6 h-6 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
                 </svg>
               </div>
@@ -628,8 +617,8 @@ export default function ReportesPage() {
             {/* Ganancia por venta */}
             <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/80 shadow-elevated">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>

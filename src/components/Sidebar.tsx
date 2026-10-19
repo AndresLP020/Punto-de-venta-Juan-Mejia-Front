@@ -6,6 +6,7 @@ import { useAdminMode } from '@/contexts/AdminModeContext';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Logo } from '@/components/Logo';
+import { usePedidosNotif } from '@/contexts/PedidosNotifContext';
 
 const items: { href: string; label: string; icon: string; adminOnly?: boolean }[] = [
   { href: '/pos/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -20,7 +21,6 @@ const items: { href: string; label: string; icon: string; adminOnly?: boolean }[
   { href: '/pos/deudas', label: 'Deudas', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', adminOnly: true },
   { href: '/pos/sueldos', label: 'Sueldos', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', adminOnly: true },
   { href: '/pos/reportes', label: 'Reportes', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', adminOnly: true },
-  { href: '/pos/lienzo-charro', label: 'Lienzo Charro', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', adminOnly: true },
   { href: '/pos/ventas', label: 'Historial', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', adminOnly: true },
   { href: '/pos/configuracion', label: 'Configuración', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', adminOnly: true },
 ];
@@ -38,7 +38,6 @@ const LABEL_BY_PATH: Record<string, string> = {
   '/pos/deudas': 'Deudas',
   '/pos/sueldos': 'Sueldos',
   '/pos/reportes': 'Reportes',
-  '/pos/lienzo-charro': 'Lienzo Charro',
   '/pos/ventas': 'Historial',
   '/pos/configuracion': 'Configuración',
 };
@@ -46,6 +45,7 @@ const LABEL_BY_PATH: Record<string, string> = {
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { isAdminMode } = useAdminMode();
+  const { porVerificar } = usePedidosNotif();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -60,14 +60,14 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <>
       <div className="p-4 md:p-5 border-b border-slate-800/80">
         <Link href="/pos/dashboard" className="flex items-center gap-3 group" onClick={onClose}>
-          <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-lg ring-2 ring-amber-400/40 group-hover:ring-amber-400/60 transition overflow-hidden">
+          <div className="rounded-full ring-1 ring-fuchsia-500/40 group-hover:ring-fuchsia-500/70 shadow-[0_0_15px_rgba(161,0,255,0.45)] transition overflow-hidden">
             <Logo size={40} />
           </div>
           <div>
-            <span className="font-extrabold text-white block leading-tight tracking-tight">
-              Nutri<span className="text-red-500">-</span>Ala
+            <span className="font-display font-bold uppercase text-white block leading-tight tracking-[0.18em] text-lg">
+              Arise
             </span>
-            <span className="text-xs text-amber-400/90 font-medium">el buen sabor del pollo…</span>
+            <span className="text-[10px] uppercase tracking-[0.3em] text-fuchsia-300/90 font-semibold">Athletic Shop</span>
           </div>
         </Link>
       </div>
@@ -85,7 +85,6 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             (pathname === '/pos/deudas' && label === 'Deudas') ||
             (pathname === '/pos/sueldos' && label === 'Sueldos') ||
             (pathname === '/pos/reportes' && label === 'Reportes') ||
-            (pathname === '/pos/lienzo-charro' && label === 'Lienzo Charro') ||
             (pathname === '/pos/configuracion' && label === 'Configuración');
           return (
             <Link
@@ -94,7 +93,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-semibold transition min-h-[44px] md:min-h-0 touch-manipulation ${
                 isActive
-                  ? 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/20'
+                  ? 'bg-gradient-to-r from-[#7900FF] via-[#A100FF] to-[#FF00E5] text-white shadow-[0_0_15px_rgba(161,0,255,0.45)]'
                   : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
               }`}
             >
@@ -102,6 +101,14 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
                 <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
               </svg>
               {label}
+              {href === '/pos/pedidos' && porVerificar > 0 && (
+                <span
+                  className="ml-auto min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-fuchsia-500 text-white text-[11px] font-extrabold shadow-[0_0_12px_rgba(255,0,229,0.6)]"
+                  title={`${porVerificar} pedido(s) por transferencia por verificar`}
+                >
+                  {porVerificar}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -135,7 +142,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <>
       {/* Desktop: sidebar siempre visible en flujo */}
       <aside
-        className="w-60 flex-shrink-0 bg-gradient-to-b from-[#0e1c38] to-[#0a1428] border-r border-[#1d3058] shadow-xl hidden md:flex md:flex-col"
+        className="w-60 flex-shrink-0 bg-gradient-to-b from-[#130921] to-[#07050B] border-r border-[#34144D] shadow-xl hidden md:flex md:flex-col"
       >
         {asideContent}
       </aside>
@@ -154,7 +161,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
           <aside
             className={`
               fixed inset-y-0 left-0 z-[101] w-[min(280px,85vw)] max-w-[280px] flex flex-col shadow-2xl
-              bg-gradient-to-b from-[#0e1c38] to-[#0a1428] border-r border-[#1d3058]
+              bg-gradient-to-b from-[#130921] to-[#07050B] border-r border-[#34144D]
               transform transition-transform duration-200 ease-out
               md:hidden
               ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
@@ -171,6 +178,6 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
 export function MobileHeaderTitle() {
   const pathname = usePathname();
-  const title = LABEL_BY_PATH[pathname ?? ''] ?? 'Nutri-Ala';
+  const title = LABEL_BY_PATH[pathname ?? ''] ?? 'ARISE Athletic Shop';
   return <span className="font-semibold text-white truncate">{title}</span>;
 }

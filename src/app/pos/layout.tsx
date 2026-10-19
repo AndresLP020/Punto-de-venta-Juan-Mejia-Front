@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AdminModeProvider, useAdminMode } from '@/contexts/AdminModeContext';
+import { PedidosNotifProvider } from '@/contexts/PedidosNotifContext';
 import { Sidebar, MobileHeaderTitle } from '@/components/Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
 
-const RUTAS_SOLO_ADMIN = ['/pos/ofertas', '/pos/pedidos', '/pos/gastos-admin', '/pos/deudas', '/pos/sueldos', '/pos/reportes', '/pos/lienzo-charro', '/pos/ventas', '/pos/configuracion'];
+const RUTAS_SOLO_ADMIN = ['/pos/ofertas', '/pos/pedidos', '/pos/gastos-admin', '/pos/deudas', '/pos/sueldos', '/pos/reportes', '/pos/ventas', '/pos/configuracion'];
 
 function AdminRouteGuard() {
   const pathname = usePathname();
@@ -34,27 +35,27 @@ function AdminModeBanner() {
   };
 
   return (
-    <div className="sticky top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-slate-800/80 border-b border-amber-500/30 text-amber-100 shadow-lg shadow-black/10">
+    <div className="sticky top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-fuchsia-600/30 via-purple-700/25 to-[#100719]/90 border-b border-fuchsia-500/40 text-fuchsia-100 backdrop-blur shadow-lg shadow-black/10">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-500/30 flex items-center justify-center">
-          <svg className="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-fuchsia-500/30 flex items-center justify-center">
+          <svg className="w-4 h-4 text-fuchsia-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
         </span>
         <div className="flex flex-col min-w-0 sm:flex-row sm:items-center sm:gap-3">
           {showMensajeIngreso ? (
             <>
-              <span className="font-semibold text-amber-50 truncate text-sm sm:text-base">Ingresaste al modo administrador</span>
+              <span className="font-semibold text-white truncate text-sm sm:text-base">Ingresaste al modo administrador</span>
               <button
                 type="button"
                 onClick={cerrarMensajeIngreso}
-                className="text-amber-300/90 hover:text-amber-100 text-xs sm:text-sm font-medium transition self-start sm:self-center touch-manipulation min-h-[44px] sm:min-h-0"
+                className="text-fuchsia-200/90 hover:text-white text-xs sm:text-sm font-medium transition self-start sm:self-center touch-manipulation min-h-[44px] sm:min-h-0"
               >
                 Ocultar mensaje
               </button>
             </>
           ) : (
-            <span className="font-semibold text-amber-50 text-sm sm:text-base">Modo administrador activo</span>
+            <span className="font-semibold text-white text-sm sm:text-base">Modo administrador activo</span>
           )}
         </div>
       </div>
@@ -83,6 +84,7 @@ export default function POSLayout({
   return (
     <ThemeProvider>
       <AdminModeProvider>
+      <PedidosNotifProvider>
         <div className="pos-layout flex h-screen bg-slate-950 overflow-hidden">
           <AdminRouteGuard />
           <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
@@ -107,6 +109,7 @@ export default function POSLayout({
             </div>
           </main>
         </div>
+      </PedidosNotifProvider>
       </AdminModeProvider>
     </ThemeProvider>
   );

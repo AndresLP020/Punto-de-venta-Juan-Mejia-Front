@@ -6,7 +6,6 @@ import {
   getVentas,
   getProductos,
   getNominas,
-  getMovimientosLienzo,
   postGastoAdmin,
   putGastoAdmin,
   deleteGastoAdmin,
@@ -29,7 +28,6 @@ export default function GastosAdminPage() {
   const [ventas, setVentas] = useState<VentaConItems[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nominas, setNominas] = useState<{ fecha: string; total: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('Todos');
   const [periodoResumen, setPeriodoResumen] = useState<PeriodoResumen>('mensual');
@@ -42,24 +40,21 @@ export default function GastosAdminPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [g, v, p, n, lienzo] = await Promise.all([
+      const [g, v, p, n] = await Promise.all([
         getGastosAdmin(),
         getVentas(),
         getProductos(),
         getNominas(),
-        getMovimientosLienzo().catch(() => []),
       ]);
       setGastos(g);
       setVentas(v);
       setProductos(p);
       setNominas(n);
-      setMovimientosLienzo(lienzo);
     } catch {
       setGastos([]);
       setVentas([]);
       setProductos([]);
       setNominas([]);
-      setMovimientosLienzo([]);
     } finally {
       setLoading(false);
     }
@@ -98,14 +93,7 @@ export default function GastosAdminPage() {
     return d >= inicioMes && d <= finMes;
   });
   const ingresosMes = ventasEsteMes.reduce((s, v) => s + (v.pagado ?? v.total ?? 0), 0);
-  const ingresosLienzoMes = movimientosLienzo
-    .filter((m) => m.tipo === 'ingreso')
-    .filter((m) => {
-      const d = new Date(m.fecha);
-      return d >= inicioMes && d <= finMes;
-    })
-    .reduce((s, m) => s + m.monto, 0);
-  const ingresosTotalesMes = ingresosMes + ingresosLienzoMes;
+  const ingresosTotalesMes = ingresosMes;
   // Costo de lo vendido (costo de productos). Usar costo guardado en ítem o, si no, costo actual del producto.
   const costoVentasMes = ventasEsteMes.reduce((sum, venta) => {
     const porcentajePagado = venta.total > 0 ? (venta.pagado ?? venta.total) / venta.total : 1;
@@ -115,7 +103,7 @@ export default function GastosAdminPage() {
     }, 0);
   }, 0);
   const gananciaBrutaMes = ingresosTotalesMes - costoVentasMes;
-  // Fórmula unificada: Ganancia neta = Ingresos (ventas + Lienzo Charro) − Costo ventas − Gastos Admin − Nóminas
+  // Fórmula unificada: Ganancia neta = Ingresos (ventas) − Costo ventas − Gastos Admin − Nóminas
   const gananciaNetaMes = gananciaBrutaMes - totalGastosMes - totalNominasMes;
   const efectivoDisponible = gananciaNetaMes;
   const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesMes === 0 && (gastos.length > 0 || nominas.length > 0));
@@ -135,7 +123,6 @@ export default function GastosAdminPage() {
     'Servicios básicos de casa',
     'Compras familiares',
     'seguros, Hacienda (SAT)',
-    'Lienzo Charro',
   ];
   const gastosPorCategoria =
     categoriaFiltro === 'Todos'
@@ -252,8 +239,8 @@ export default function GastosAdminPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-xl font-bold text-blue-400">$</span>
+          <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-xl font-bold text-violet-300">$</span>
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white">Gastos del Administrador</h1>
@@ -262,7 +249,7 @@ export default function GastosAdminPage() {
         </div>
         <button
           onClick={() => abrirModal()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-lg transition"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-medium shadow-lg transition"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -307,7 +294,7 @@ export default function GastosAdminPage() {
           <div className="rounded-2xl bg-slate-800/80 border border-emerald-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Ingresos Mensuales</p>
             <p className="text-2xl font-bold text-emerald-400 mt-1 tabular-nums">{fm(ingresosTotalesMes)}</p>
-            <p className="text-xs text-slate-500 mt-1">Ventas + Lienzo Charro del mes</p>
+            <p className="text-xs text-slate-500 mt-1">Ventas del mes</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-amber-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Costo de Ventas</p>
@@ -341,7 +328,7 @@ export default function GastosAdminPage() {
                 onClick={() => setCategoriaFiltro(cat)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
                   categoriaFiltro === cat
-                    ? 'bg-blue-500 text-white shadow-lg'
+                    ? 'bg-violet-500 text-white shadow-lg'
                     : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600 border border-slate-600/50'
                 }`}
               >
@@ -354,7 +341,7 @@ export default function GastosAdminPage() {
               onClick={() => setCategoriaFiltro('Gastos de la empresa')}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
                 categoriaFiltro === 'Gastos de la empresa'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-violet-500 text-white'
                   : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600 border border-slate-600/50'
               }`}
             >
@@ -403,8 +390,8 @@ export default function GastosAdminPage() {
             />
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 px-5 py-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <span className="text-blue-400 font-bold">$</span>
+            <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center">
+              <span className="text-violet-300 font-bold">$</span>
             </div>
             <div>
               <p className="text-slate-400 text-sm">Total Gastado (Filtrado)</p>
@@ -469,7 +456,7 @@ export default function GastosAdminPage() {
                         <p className="text-sm mt-1 max-w-sm">Comienza agregando tu primer gasto administrativo usando el botón &quot;Agregar Gasto&quot;</p>
                         <button
                           onClick={() => abrirModal()}
-                          className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium transition"
+                          className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-medium transition"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

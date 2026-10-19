@@ -277,7 +277,7 @@ export default function ProveedoresPage() {
                     </div>
                     <button
                       onClick={() => abrirCuentaProveedor(p)}
-                      className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold transition"
+                      className="px-3 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-600 text-white text-xs font-semibold transition"
                     >
                       Ver / Registrar deuda
                     </button>
@@ -403,7 +403,7 @@ export default function ProveedoresPage() {
                     <select
                       value={tipoMovimiento}
                       onChange={(e) => setTipoMovimiento(e.target.value as 'deuda' | 'pago')}
-                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500 outline-none"
                     >
                       <option value="deuda">Registrar deuda</option>
                       <option value="pago">Registrar pago</option>
@@ -440,7 +440,7 @@ export default function ProveedoresPage() {
                         setMontoMovimiento(String(num));
                         setMontoMovimientoDisplay(formatearMoneda(num));
                       }}
-                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500 outline-none"
                       required
                     />
                   </div>
@@ -450,7 +450,7 @@ export default function ProveedoresPage() {
                       type="date"
                       value={fechaMovimiento}
                       onChange={(e) => setFechaMovimiento(e.target.value)}
-                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500 outline-none"
                     />
                   </div>
                   <div className="md:col-span-1">
@@ -460,13 +460,13 @@ export default function ProveedoresPage() {
                       value={descripcionMovimiento}
                       onChange={(e) => setDescripcionMovimiento(e.target.value)}
                       placeholder="Ej. Factura 123, abono, etc."
-                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500 outline-none"
                     />
                   </div>
                   <div className="md:col-span-4 flex justify-end">
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition"
+                      className="px-4 py-2 rounded-lg bg-violet-500 hover:bg-violet-600 text-white text-sm font-semibold transition"
                     >
                       Guardar movimiento
                     </button>

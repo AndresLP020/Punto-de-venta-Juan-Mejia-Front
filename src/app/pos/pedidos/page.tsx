@@ -13,6 +13,7 @@ import {
   type EstadoPedido,
   type PagosConfig,
 } from '@/lib/api';
+import { EVENTO_PEDIDOS_ACTUALIZADOS } from '@/contexts/PedidosNotifContext';
 import { formatearMoneda } from '@/lib/utils';
 
 const METODO_LABEL: Record<string, string> = {
@@ -24,7 +25,7 @@ const METODO_LABEL: Record<string, string> = {
 
 const PAGO_BADGE: Record<EstadoPago, string> = {
   pendiente: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-  en_revision: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
+  en_revision: 'bg-violet-500/20 text-violet-200 border border-violet-500/30',
   pagado: 'bg-green-500/20 text-green-300 border border-green-500/30',
   rechazado: 'bg-red-500/20 text-red-300 border border-red-500/30',
 };
@@ -83,6 +84,13 @@ export default function PedidosAdminPage() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  // Se recarga sola cuando el aviso del POS detecta un pedido nuevo o un comprobante
+  useEffect(() => {
+    const recargar = () => getPedidos().then(setPedidos).catch(() => {});
+    window.addEventListener(EVENTO_PEDIDOS_ACTUALIZADOS, recargar);
+    return () => window.removeEventListener(EVENTO_PEDIDOS_ACTUALIZADOS, recargar);
+  }, []);
 
   const pedidosFiltrados = useMemo(() => {
     switch (filtro) {
