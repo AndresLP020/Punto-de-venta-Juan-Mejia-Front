@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { getProductos, getCategorias, getProveedores, postCategoria, deleteCategoria, postProducto, putProducto, deleteProducto, type Producto, type Proveedor } from '@/lib/api';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
 import { useAdminMode } from '@/contexts/AdminModeContext';
+import { aCSV, descargarCSV, leerCSV } from '@/lib/csv';
 
 const formInitial = {
   nombre: '',
@@ -21,7 +22,12 @@ const formInitial = {
 const redondearPrecio = (n: number) => Math.round(n * 100) / 100;
 
 export default function ProductosPage() {
-  const { isAdminMode } = useAdminMode() ?? { isAdminMode: false };
+  const { isAdminMode, puede } = useAdminMode();
+  // Permisos del usuario (el modo administrador los concede todos).
+  const puedeEditar = puede('actualizarProductos');
+  const puedeBorrar = puede('borrarProductos');
+  const puedeBaja = puede('darDeBajaProductos');
+  const puedeGestionar = puedeEditar || puedeBorrar || puedeBaja;
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -29,6 +35,11 @@ export default function ProductosPage() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('Todas las categorías');
   const [proveedorFiltro, setProveedorFiltro] = useState<number | ''>('');
   const [vista, setVista] = useState<'tabla' | 'cards'>('tabla');
+
+  // En celular la tabla no cabe: se empieza en la vista de tarjetas.
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setVista('cards');
+  }, []);
   const [ordenarPor, setOrdenarPor] = useState<'nombre' | 'precio' | 'stock' | 'categoria'>('nombre');
   const [ordenAscendente, setOrdenAscendente] = useState(true);
   const [filtroStockBajo, setFiltroStockBajo] = useState(false);
@@ -183,6 +194,81 @@ export default function ProductosPage() {
     }
   };
 
+  const inputImportarRef = useRef<HTMLInputElement>(null);
+  const [importando, setImportando] = useState(false);
+
+  const COLUMNAS_CSV = ['codigo', 'nombre', 'categoria', 'precio', 'costo', 'stock', 'stockminimo', 'estado', 'esgranel'];
+
+  const exportarProductos = () => {
+    const filas = productosFiltrados.map((p) => [
+      p.codigo ?? '',
+      p.nombre,
+      p.categoria ?? '',
+      p.precio,
+      p.costo ?? 0,
+      p.stock,
+      p.stockMinimo ?? 0,
+      p.estado || 'Activo',
+      p.esGranel ? 'si' : 'no',
+    ]);
+    const fecha = new Date().toLocaleDateString('en-CA');
+    descargarCSV(`productos-${fecha}.csv`, aCSV(COLUMNAS_CSV, filas));
+  };
+
+  /**
+   * Importa un CSV con las mismas columnas que la exportación. Si el código ya existe se actualiza
+   * el producto; si no, se crea uno nuevo.
+   */
+  const importarProductos = async (archivo: File) => {
+    setImportando(true);
+    try {
+      const filas = leerCSV(await archivo.text());
+      if (filas.length === 0 || !('nombre' in filas[0])) {
+        alert(`El archivo no tiene el formato esperado. Columnas: ${COLUMNAS_CSV.join(', ')}`);
+        return;
+      }
+      const num = (v: string | undefined) => (v == null || v === '' ? undefined : Number(v.replace(/[$,\s]/g, '')));
+      let creados = 0;
+      let actualizados = 0;
+      const errores: string[] = [];
+      for (let i = 0; i < filas.length; i++) {
+        const f = filas[i];
+        const datos = {
+          nombre: f.nombre,
+          codigo: f.codigo || undefined,
+          categoria: f.categoria || '',
+          precio: num(f.precio) ?? 0,
+          costo: num(f.costo),
+          stock: num(f.stock),
+          stockMinimo: num(f.stockminimo),
+          estado: f.estado === 'Inactivo' ? 'Inactivo' : 'Activo',
+          esGranel: ['si', 'sí', 'true', '1'].includes((f.esgranel || '').toLowerCase()),
+        };
+        try {
+          if (!datos.nombre) throw new Error('falta el nombre');
+          const existente = datos.codigo ? productos.find((p) => p.codigo === datos.codigo) : undefined;
+          if (existente) {
+            await putProducto(existente.id, datos);
+            actualizados++;
+          } else {
+            await postProducto(datos);
+            creados++;
+          }
+        } catch (err) {
+          errores.push(`Fila ${i + 2}: ${err instanceof Error ? err.message : 'error'}`);
+        }
+      }
+      cargarDatos();
+      alert(
+        `Importación terminada: ${creados} creado(s), ${actualizados} actualizado(s).` +
+          (errores.length ? `\n\nErrores (${errores.length}):\n${errores.slice(0, 15).join('\n')}` : '')
+      );
+    } finally {
+      setImportando(false);
+      if (inputImportarRef.current) inputImportarRef.current.value = '';
+    }
+  };
+
   const productosFiltrados = productos
     .filter((p) => {
       const coincideBusqueda =
@@ -233,7 +319,7 @@ export default function ProductosPage() {
     <div className="flex flex-col h-full text-white">
       {/* Header */}
       <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Gestión de Productos</h1>
             <p className="text-slate-400 text-sm">
@@ -325,11 +411,11 @@ export default function ProductosPage() {
         </div>
 
         {/* Filtro de categorías */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <select
             value={categoriaFiltro}
             onChange={(e) => setCategoriaFiltro(e.target.value)}
-            className="pl-10 pr-8 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none cursor-pointer"
+            className="w-full pl-10 pr-8 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none cursor-pointer"
           >
             <option>Todas las categorías</option>
             {categorias.map((c) => (
@@ -347,7 +433,7 @@ export default function ProductosPage() {
         <select
           value={proveedorFiltro === '' ? '' : proveedorFiltro}
           onChange={(e) => setProveedorFiltro(e.target.value === '' ? '' : Number(e.target.value))}
-          className="px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         >
           <option value="">Todos los proveedores</option>
           {proveedores.map((pr) => (
@@ -386,20 +472,46 @@ export default function ProductosPage() {
         </div>
 
         {/* Botones de acción */}
-        <div className="flex gap-2">
-          <button className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={exportarProductos}
+            disabled={productosFiltrados.length === 0}
+            title="Descargar los productos mostrados en CSV (se abre con Excel)"
+            className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm disabled:opacity-50"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Exportar
           </button>
-          <button className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm">
+          {puedeEditar && (
+          <>
+          <input
+            ref={inputImportarRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const archivo = e.target.files?.[0];
+              if (archivo) importarProductos(archivo);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputImportarRef.current?.click()}
+            disabled={importando}
+            title="Cargar un CSV con el mismo formato que la exportación. Los códigos existentes se actualizan."
+            className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 flex items-center gap-2 transition text-sm disabled:opacity-50"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            Importar
+            {importando ? 'Importando…' : 'Importar'}
           </button>
-          {isAdminMode && (
+          </>
+          )}
+          {puedeEditar && (
             <button
               onClick={abrirModalNuevo}
               className="px-4 py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white flex items-center gap-2 transition text-sm font-medium"
@@ -426,7 +538,7 @@ export default function ProductosPage() {
             <p className="text-slate-500 text-sm mt-1">
               {productos.length === 0 ? 'Agrega tu primer producto con el botón superior.' : 'Intenta ajustar los filtros de búsqueda.'}
             </p>
-            {productos.length === 0 && isAdminMode && (
+            {productos.length === 0 && puedeEditar && (
               <button onClick={abrirModalNuevo} className="mt-4 px-4 py-2.5 rounded-xl bg-green-500 text-white text-sm font-medium hover:bg-green-600">
                 Agregar producto
               </button>
@@ -435,7 +547,7 @@ export default function ProductosPage() {
         ) : vista === 'tabla' ? (
           <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="tabla-acciones w-full">
                 <thead>
                   <tr className="border-b border-slate-700 bg-slate-900/50">
                     <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300">PRODUCTO</th>
@@ -446,7 +558,7 @@ export default function ProductosPage() {
                     <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">COSTO</th>
                     <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">STOCK</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300">ESTADO</th>
-                    {isAdminMode && <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">ACCIONES</th>}
+                    {puedeGestionar && <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300">ACCIONES</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -498,9 +610,10 @@ export default function ProductosPage() {
                             {p.estado || 'Activo'}
                           </span>
                         </td>
-                        {isAdminMode && (
+                        {puedeGestionar && (
                           <td className="py-4 px-6">
                             <div className="flex items-center justify-end gap-2">
+                              {(puedeEditar || puedeBaja) && (
                               <button
                                 onClick={() => abrirModalEditar(p)}
                                 className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition"
@@ -510,6 +623,8 @@ export default function ProductosPage() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
+                              )}
+                              {puedeBorrar && (
                               <button
                                 onClick={() => eliminarProducto(p)}
                                 className="p-1.5 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
@@ -519,6 +634,7 @@ export default function ProductosPage() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                               </button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -591,20 +707,24 @@ export default function ProductosPage() {
                     </span>
                   </div>
 
-                  {isAdminMode && (
+                  {puedeGestionar && (
                     <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-700">
+                      {(puedeEditar || puedeBaja) && (
                       <button
                         onClick={() => abrirModalEditar(p)}
                         className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition text-sm"
                       >
                         Editar
                       </button>
+                      )}
+                      {puedeBorrar && (
                       <button
                         onClick={() => eliminarProducto(p)}
                         className="p-2 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition text-sm"
                       >
                         Eliminar
                       </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -661,7 +781,7 @@ export default function ProductosPage() {
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
-                  {form.categoria && (
+                  {form.categoria && puedeBorrar && (
                     <button
                       type="button"
                       onClick={eliminarCategoriaActual}
@@ -786,6 +906,8 @@ export default function ProductosPage() {
                 <label className="block text-slate-400 text-sm font-medium mb-1">Estado</label>
                 <select
                   value={form.estado}
+                  disabled={!puedeBaja}
+                  title={puedeBaja ? undefined : 'No tienes permiso para dar de baja productos'}
                   onChange={(e) => setForm((f) => ({ ...f, estado: e.target.value }))}
                   className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 >

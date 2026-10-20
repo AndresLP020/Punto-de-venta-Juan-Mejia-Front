@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getClientes, getVentas, postCliente, putCliente, deleteCliente, type Cliente } from '@/lib/api';
-import { formatearMoneda, formatearCantidad } from '@/lib/utils';
+import { formatearMoneda, formatearCantidad, mensajeError } from '@/lib/utils';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 
 type Venta = {
@@ -140,7 +140,7 @@ export default function ClientesPage() {
       await cargarDatos();
       cerrarFormulario();
     } catch (error) {
-      alert('Error al guardar el cliente');
+      alert(mensajeError(error, 'Error al guardar el cliente'));
       console.error(error);
     }
   };
@@ -152,7 +152,7 @@ export default function ClientesPage() {
       await deleteCliente(id);
       await cargarDatos();
     } catch (error) {
-      alert('Error al eliminar el cliente');
+      alert(mensajeError(error, 'Error al eliminar el cliente'));
       console.error(error);
     }
   };
@@ -170,7 +170,7 @@ export default function ClientesPage() {
     <div className="flex flex-col h-full text-white">
       {/* Header */}
       <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Gestión de Clientes</h1>
             <p className="text-slate-400 text-sm">Administra tu base de clientes y sus compras</p>

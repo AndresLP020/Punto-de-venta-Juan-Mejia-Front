@@ -14,19 +14,19 @@ import {
   deleteEmpleado,
   postNomina,
   postAdelanto,
+  deleteNomina,
+  deleteAdelanto,
+  getDevoluciones,
   type Empleado,
   type Producto,
   type Adelanto,
+  type Venta,
+  type GastoAdmin,
+  type MovimientoLienzo,
+  type Devolucion,
 } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
-
-type Venta = {
-  id: number;
-  fecha: string;
-  total: number;
-  pagado?: number;
-  items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[];
-};
+import { formatearMoneda, hoyISO, mensajeError, parseFecha } from '@/lib/utils';
+import { calcularFinanzas } from '@/lib/finanzas';
 
 function getInicioSemana(): Date {
   const d = new Date();
@@ -43,7 +43,7 @@ function getLunesSemana(date: Date = new Date()): string {
   const lunes = new Date(d);
   lunes.setDate(diff);
   lunes.setHours(0, 0, 0, 0);
-  return lunes.toISOString().slice(0, 10);
+  return hoyISO(lunes);
 }
 
 export default function SueldosPage() {
@@ -51,8 +51,9 @@ export default function SueldosPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nominas, setNominas] = useState<{ id: number; fecha: string; total: number; items: { empleadoId: number; monto: number; semana?: string; adelantoDescontado?: number }[] }[]>([]);
-  const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
+  const [gastosAdmin, setGastosAdmin] = useState<GastoAdmin[]>([]);
+  const [movimientosLienzo, setMovimientosLienzo] = useState<MovimientoLienzo[]>([]);
+  const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalTrabajador, setModalTrabajador] = useState(false);
@@ -72,7 +73,7 @@ export default function SueldosPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [e, v, p, n, g, lienzo, a] = await Promise.all([
+      const [e, v, p, n, g, lienzo, a, d] = await Promise.all([
         getEmpleados(),
         getVentas(),
         getProductos(),
@@ -80,7 +81,9 @@ export default function SueldosPage() {
         getGastosAdmin(),
         getMovimientosLienzo().catch(() => []),
         getAdelantos(),
+        getDevoluciones().catch(() => []),
       ]);
+      setDevoluciones(d);
       setEmpleados(e);
       setVentas(v);
       setProductos(p);
@@ -108,45 +111,16 @@ export default function SueldosPage() {
   const inicioSemana = getInicioSemana();
   const ahora = new Date();
 
-  const ventasSemanales = ventas.filter((v) => {
-    const d = new Date(v.fecha);
-    return d >= inicioSemana && d <= ahora;
-  });
-  const ingresosSemanales = ventasSemanales.reduce(
-    (s, v) => s + (v.pagado ?? v.total ?? 0),
-    0
+  // Misma fórmula que Gastos Admin y Reportes (lib/finanzas.ts). Las nóminas ya están en Gastos Admin
+  // (categoría Sueldos), así que no se restan por separado.
+  const finanzasSemana = calcularFinanzas(
+    { ventas, gastos: gastosAdmin, lienzo: movimientosLienzo, devoluciones, productos },
+    { inicio: inicioSemana, fin: ahora }
   );
-  const ingresosLienzoSemana = movimientosLienzo
-    .filter((m) => m.tipo === 'ingreso')
-    .filter((m) => {
-      const d = new Date(m.fecha);
-      return d >= inicioSemana && d <= ahora;
-    })
-    .reduce((s, m) => s + m.monto, 0);
-  const ingresosTotalesSemanales = ingresosSemanales + ingresosLienzoSemana;
-
-  const costosSemanales = ventasSemanales.reduce((sum, venta) => {
-    const porcentaje = venta.total > 0 ? (venta.pagado ?? venta.total) / venta.total : 1;
-    return (
-      sum +
-      (venta.items || []).reduce((itemSum, item) => {
-        const costoUnit = item.costo != null ? item.costo : (productos.find((p) => p.id === item.id)?.costo ?? 0);
-        return itemSum + (costoUnit * item.cantidad * porcentaje);
-      }, 0)
-    );
-  }, 0);
-
-  const nominasSemanales = nominas.filter((n) => {
-    const d = new Date(n.fecha);
-    return d >= inicioSemana && d <= ahora;
-  });
-  const totalNominasPagadasSemana = nominasSemanales.reduce((s, n) => s + n.total, 0);
-
-  const gastosAdminSemanales = gastosAdmin.filter((g) => {
-    const d = new Date(g.fecha);
-    return d >= inicioSemana && d <= ahora;
-  });
-  const totalGastosAdminSemana = gastosAdminSemanales.reduce((s, g) => s + g.monto, 0);
+  const ingresosTotalesSemanales = finanzasSemana.ingresosTotales;
+  const costosSemanales = finanzasSemana.costoVentas;
+  const totalGastosAdminSemana = finanzasSemana.gastosAdmin;
+  const totalNominasPagadasSemana = finanzasSemana.gastosSueldos;
 
   const totalSueldos = empleados.reduce((s, e) => s + e.sueldo, 0);
   const semanaActual = getLunesSemana();
@@ -170,13 +144,13 @@ export default function SueldosPage() {
   const eventosPorFecha = (() => {
     const map: Record<string, { nominas: typeof nominas; adelantos: Adelanto[] }> = {};
     nominas.forEach((n) => {
-      const key = n.fecha ? n.fecha.slice(0, 10) : '';
+      const key = n.fecha ? hoyISO(parseFecha(n.fecha)) : '';
       if (!key) return;
       if (!map[key]) map[key] = { nominas: [], adelantos: [] };
       map[key].nominas.push(n);
     });
     adelantos.forEach((a) => {
-      const key = a.fecha ? a.fecha.slice(0, 10) : '';
+      const key = a.fecha ? hoyISO(parseFecha(a.fecha)) : '';
       if (!key) return;
       if (!map[key]) map[key] = { nominas: [], adelantos: [] };
       map[key].adelantos.push(a);
@@ -184,8 +158,7 @@ export default function SueldosPage() {
     return map;
   })();
 
-  // Misma fórmula que Gastos Admin y Reportes: Ingresos (ventas + Lienzo Charro) − Costo ventas − Gastos Admin − Nóminas
-  const gananciaNetaSemanal = ingresosTotalesSemanales - costosSemanales - totalGastosAdminSemana - totalNominasPagadasSemana;
+  const gananciaNetaSemanal = finanzasSemana.gananciaNeta;
   const efectivoDisponible = gananciaNetaSemanal;
   const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesSemanales === 0 && (empleados.length > 0 || gastosAdmin.length > 0));
 
@@ -226,7 +199,7 @@ export default function SueldosPage() {
       await cargarDatos();
       cerrarModalTrabajador();
     } catch (err) {
-      console.error(err);
+      alert(mensajeError(err, 'Error al guardar el trabajador'));
     }
   };
 
@@ -237,7 +210,7 @@ export default function SueldosPage() {
       await cargarDatos();
       setSeleccionados((prev) => prev.filter((x) => x !== id));
     } catch (err) {
-      console.error(err);
+      alert(mensajeError(err, 'Error al eliminar el trabajador'));
     }
   };
 
@@ -280,8 +253,32 @@ export default function SueldosPage() {
       setModalAdelanto(false);
       setFormAdelanto({ empleadoId: '', montoTotal: '', semanas: '2' });
     } catch (err) {
-      console.error(err);
-      alert('Error al registrar adelanto');
+      alert(mensajeError(err, 'Error al registrar adelanto'));
+    }
+  };
+
+  const eliminarNomina = async (id: number) => {
+    if (!confirm('¿Eliminar esta nómina? Se borrará su gasto en Gastos Admin y se devolverá a los adelantos lo que se haya descontado.')) return;
+    try {
+      const r = await deleteNomina(id);
+      if (r?.aviso) alert(r.aviso);
+      await cargarDatos();
+    } catch (err) {
+      alert(mensajeError(err, 'Error al eliminar la nómina'));
+    }
+  };
+
+  const cancelarAdelanto = async (ad: Adelanto) => {
+    const yaDescontado = ad.saldoPendiente < ad.montoTotal;
+    const msg = yaDescontado
+      ? `¿Cancelar el adelanto de ${ad.nombre}? Ya se descontaron ${fm(ad.montoTotal - ad.saldoPendiente)}; el saldo restante (${fm(ad.saldoPendiente)}) ya no se descontará.`
+      : `¿Eliminar el adelanto de ${ad.nombre} por ${fm(ad.montoTotal)}?`;
+    if (!confirm(msg)) return;
+    try {
+      await deleteAdelanto(ad.id);
+      await cargarDatos();
+    } catch (err) {
+      alert(mensajeError(err, 'Error al cancelar el adelanto'));
     }
   };
 
@@ -307,7 +304,7 @@ export default function SueldosPage() {
       setModalNomina(false);
       setSeleccionados([]);
     } catch (err) {
-      console.error(err);
+      alert(mensajeError(err, 'Error al procesar la nómina'));
     }
   };
 
@@ -326,11 +323,11 @@ export default function SueldosPage() {
 
   return (
     <div className="flex flex-col min-h-full text-white">
-      {/* Debug bar */}
+      {/* Barra de resumen semanal */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3 bg-slate-800/60 border-b border-slate-700/80">
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-slate-400 text-sm font-medium">
-            Empleados: {empleados.length} | Ingresos: {fm(ingresosTotalesSemanales)} · Costo ventas: {fm(costosSemanales)} · Gastos Admin: {fm(totalGastosAdminSemana)} · Nóminas: {fm(totalNominasPagadasSemana)} · Ganancia neta: {fm(gananciaNetaSemanal)}
+            Empleados: {empleados.length} | Ingresos: {fm(ingresosTotalesSemanales)} · Costo ventas: {fm(costosSemanales)} · Gastos Admin: {fm(totalGastosAdminSemana)} (nóminas incluidas: {fm(totalNominasPagadasSemana)}) · Ganancia neta: {fm(gananciaNetaSemanal)}
           </span>
           {empleados.length === 0 && (
             <span className="flex items-center gap-1.5 text-amber-400 text-sm">
@@ -387,7 +384,7 @@ export default function SueldosPage() {
             <p className={`text-2xl font-bold mt-1 tabular-nums ${gananciaNetaSemanal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {fm(gananciaNetaSemanal)}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">Ingresos − Costo ventas − Gastos Admin − Nóminas</p>
+            <p className="text-xs text-slate-500 mt-0.5">Ingresos − Costo ventas − Gastos Admin (incluye nóminas)</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-violet-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Efectivo Disponible</p>
@@ -439,6 +436,13 @@ export default function SueldosPage() {
                   <span className="text-slate-400 mx-2">·</span>
                   <span className="text-amber-400">Debe {fm(ad.saldoPendiente)}</span>
                   <span className="text-slate-500 ml-1">({fm(ad.montoPorSemana)}/semana en {ad.semanas} semanas)</span>
+                  <button
+                    type="button"
+                    onClick={() => cancelarAdelanto(ad)}
+                    className="ml-3 text-xs text-red-300 hover:text-red-200 underline"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               ))}
             </div>
@@ -479,21 +483,21 @@ export default function SueldosPage() {
               const cells: { date: Date; key: string; isCurrentMonth: boolean }[] = [];
               for (let i = 0; i < startPad; i++) {
                 const d = new Date(calendarioMes.año, calendarioMes.mes, -startPad + i + 1);
-                cells.push({ date: d, key: d.toISOString().slice(0, 10), isCurrentMonth: false });
+                cells.push({ date: d, key: hoyISO(d), isCurrentMonth: false });
               }
               for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(calendarioMes.año, calendarioMes.mes, d);
-                cells.push({ date, key: date.toISOString().slice(0, 10), isCurrentMonth: true });
+                cells.push({ date, key: hoyISO(date), isCurrentMonth: true });
               }
               const rest = 42 - cells.length;
               for (let i = 0; i < rest; i++) {
                 const date = new Date(calendarioMes.año, calendarioMes.mes + 1, i + 1);
-                cells.push({ date, key: date.toISOString().slice(0, 10), isCurrentMonth: false });
+                cells.push({ date, key: hoyISO(date), isCurrentMonth: false });
               }
               return cells.map(({ date, key, isCurrentMonth }) => {
                 const eventos = eventosPorFecha[key];
                 const hasEventos = eventos && (eventos.nominas.length > 0 || eventos.adelantos.length > 0);
-                const isHoy = key === new Date().toISOString().slice(0, 10);
+                const isHoy = key === hoyISO();
                 return (
                   <button
                     key={key}
@@ -545,7 +549,16 @@ export default function SueldosPage() {
                         <ul className="space-y-2">
                           {eventosPorFecha[fechaDetalle].nominas.map((n) => (
                             <li key={n.id} className="rounded-xl bg-slate-700/80 p-3 text-sm">
-                              <p className="text-slate-400 text-xs">Total pagado: {fm(n.total)}</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-slate-400 text-xs">Total pagado: {fm(n.total)}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => eliminarNomina(n.id)}
+                                  className="text-xs text-red-300 hover:text-red-200 underline"
+                                >
+                                  Eliminar nómina
+                                </button>
+                              </div>
                               <ul className="mt-2 space-y-1">
                                 {(n.items || []).map((it: { nombre?: string; monto: number; adelantoDescontado?: number; empleadoId?: number }, idx: number) => (
                                   <li key={`${n.id}-${it.empleadoId ?? idx}`} className="flex justify-between text-slate-300">
@@ -594,7 +607,7 @@ export default function SueldosPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="tabla-acciones w-full">
                 <thead>
                   <tr className="border-b border-slate-700 bg-slate-800">
                     <th className="text-left text-slate-400 font-semibold text-sm px-6 py-4">Nombre</th>

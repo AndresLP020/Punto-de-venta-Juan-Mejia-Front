@@ -10,11 +10,12 @@ import {
   getCuentasProveedoresResumen,
   getMovimientosProveedor,
   postMovimientoProveedor,
+  deleteMovimientoProveedor,
   type Proveedor,
   type CuentaProveedorResumen,
   type MovimientoCuentaProveedor,
 } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
+import { formatearMoneda, parseFecha } from '@/lib/utils';
 
 export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -105,7 +106,7 @@ export default function ProveedoresPage() {
   };
 
   const eliminar = async (id: number) => {
-    if (!confirm('¿Eliminar este proveedor? Los productos que lo tengan asignado quedarán sin proveedor.')) return;
+    if (!confirm('¿Eliminar este proveedor? Los productos que lo tengan asignado quedarán sin proveedor. (No se puede eliminar si hay saldo pendiente.)')) return;
     try {
       await deleteProveedor(id);
       await cargarDatos();
@@ -168,6 +169,17 @@ export default function ProveedoresPage() {
     }
   };
 
+  const eliminarMovimiento = async (id: number) => {
+    if (!proveedorCuenta || !confirm('¿Eliminar este movimiento? Úsalo solo para corregir registros hechos por error.')) return;
+    try {
+      await deleteMovimientoProveedor(id);
+      await cargarDatos();
+      setMovimientos(await getMovimientosProveedor(proveedorCuenta.id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar movimiento');
+    }
+  };
+
   const filtrados = busqueda.trim()
     ? proveedores.filter(
         (p) =>
@@ -180,7 +192,7 @@ export default function ProveedoresPage() {
   return (
     <div className="flex flex-col h-full text-white">
       <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Proveedores</h1>
             <p className="text-slate-400 text-sm">Quienes surten tus productos. Asigna un proveedor al crear o editar cada producto.</p>
@@ -494,11 +506,19 @@ export default function ProveedoresPage() {
                           {m.descripcion && <p className="text-xs text-slate-400">{m.descripcion}</p>}
                         </div>
                         <span className="text-xs text-slate-400">
-                          {new Date(m.fecha).toLocaleDateString('es-MX', {
+                          {parseFecha(m.fecha).toLocaleDateString('es-MX', {
                             day: '2-digit',
                             month: '2-digit',
                             year: 'numeric',
                           })}
+                          <button
+                            type="button"
+                            onClick={() => eliminarMovimiento(m.id)}
+                            className="ml-3 text-red-300 hover:text-red-200 underline"
+                            title="Eliminar movimiento registrado por error"
+                          >
+                            Eliminar
+                          </button>
                         </span>
                       </div>
                     ))}

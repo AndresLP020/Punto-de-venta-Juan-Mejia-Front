@@ -11,16 +11,16 @@ import {
   type MetaAhorro,
   type RegistroAhorroDia,
 } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
+import { formatearMoneda, hoyISO, mensajeError, parseFecha } from '@/lib/utils';
 
 function hoyStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return hoyISO();
 }
 
 function diasHasta(fechaLimite: string): number {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const lim = new Date(fechaLimite);
+  const lim = parseFecha(fechaLimite);
   lim.setHours(0, 0, 0, 0);
   const diff = lim.getTime() - hoy.getTime();
   return Math.max(0, Math.ceil(diff / 86400000));
@@ -193,7 +193,7 @@ export default function DeudasPage() {
       setForm({
         nombre: '',
         meta: '',
-        fechaLimite: enUnMes.toISOString().slice(0, 10),
+        fechaLimite: hoyISO(enUnMes),
       });
     }
     setModalAbierto(true);
@@ -275,7 +275,7 @@ export default function DeudasPage() {
   const fm = (n: number) => `$${formatearMoneda(n)}`;
 
   const formatearFecha = (f: string) => {
-    return new Date(f).toLocaleDateString('es-MX', {
+    return parseFecha(f).toLocaleDateString('es-MX', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -303,7 +303,7 @@ export default function DeudasPage() {
 
   return (
     <div className="flex flex-col min-h-full text-white">
-      <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

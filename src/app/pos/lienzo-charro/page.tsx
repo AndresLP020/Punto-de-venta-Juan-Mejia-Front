@@ -7,7 +7,7 @@ import {
   deleteMovimientoLienzo,
   type MovimientoLienzo,
 } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
+import { formatearMoneda, hoyISO } from '@/lib/utils';
 
 type Periodo = 'dia' | 'semana' | 'mes' | 'año';
 
@@ -84,8 +84,7 @@ export default function LienzoCharroPage() {
 
   useEffect(() => {
     if (!fecha) {
-      const hoy = new Date().toISOString().split('T')[0];
-      setFecha(hoy);
+      setFecha(hoyISO());
     }
   }, [fecha]);
 
@@ -123,7 +122,7 @@ export default function LienzoCharroPage() {
       await cargarDatos();
       setDescripcion('');
       setMonto('');
-      setFecha(new Date().toISOString().split('T')[0]);
+      setFecha(hoyISO());
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al guardar');
     }
@@ -160,7 +159,7 @@ export default function LienzoCharroPage() {
 
   return (
     <div className="flex flex-col min-h-full text-white">
-      <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,7 +309,7 @@ export default function LienzoCharroPage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="tabla-acciones w-full">
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-800">
                   <th className="text-left text-slate-400 font-semibold text-sm px-6 py-4">Fecha</th>

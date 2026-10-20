@@ -1,152 +1,241 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
-export async function getProductos(proveedorId?: number) {
-  const url = proveedorId != null ? `${BASE}/api/productos?proveedorId=${proveedorId}` : `${BASE}/api/productos`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Error al cargar productos');
-  return res.json();
+// ---------------------------------------------------------------------------
+// Sesión
+// ---------------------------------------------------------------------------
+
+const TOKEN_KEY = 'pos-token';
+const USUARIO_KEY = 'pos-usuario';
+const ADMIN_TOKEN_KEY = 'pos-admin-token';
+
+export type PermisosPOS = {
+  hacerVentas: boolean;
+  darDeBajaProductos: boolean;
+  actualizarProductos: boolean;
+  borrarProductos: boolean;
+};
+
+export type UsuarioSesion = {
+  nombre: string;
+  email: string;
+  principal: boolean;
+  permisos: PermisosPOS;
+};
+
+function leer(storage: 'local' | 'session', key: string): string | null {
+  try {
+    return (storage === 'local' ? localStorage : sessionStorage).getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-export async function getCategorias() {
-  const res = await fetch(`${BASE}/api/categorias`);
-  if (!res.ok) throw new Error('Error al cargar categorías');
-  return res.json();
+function escribir(storage: 'local' | 'session', key: string, value: string | null) {
+  try {
+    const s = storage === 'local' ? localStorage : sessionStorage;
+    if (value == null) s.removeItem(key);
+    else s.setItem(key, value);
+  } catch {}
 }
 
-export async function postCategoria(nombre: string) {
-  const res = await fetch(`${BASE}/api/categorias`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nombre: nombre.trim() }),
+export function getToken(): string | null {
+  return leer('session', ADMIN_TOKEN_KEY) || leer('local', TOKEN_KEY);
+}
+
+export function haySesion(): boolean {
+  return Boolean(leer('local', TOKEN_KEY));
+}
+
+export function getUsuarioSesion(): UsuarioSesion | null {
+  const raw = leer('local', USUARIO_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as UsuarioSesion;
+  } catch {
+    return null;
+  }
+}
+
+export function tieneAdminToken(): boolean {
+  return Boolean(leer('session', ADMIN_TOKEN_KEY));
+}
+
+export function setAdminToken(token: string | null) {
+  escribir('session', ADMIN_TOKEN_KEY, token);
+}
+
+export function cerrarSesion() {
+  escribir('local', TOKEN_KEY, null);
+  escribir('local', USUARIO_KEY, null);
+  escribir('session', ADMIN_TOKEN_KEY, null);
+}
+
+/** Error de la API con el código HTTP. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function request<T = unknown>(path: string, options: { method?: string; body?: unknown; fallback?: string } = {}): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${BASE}${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al crear categoría');
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (res.status === 401 && !path.startsWith('/api/auth/')) {
+      // Sesión vencida o inválida: volver al inicio de sesión.
+      cerrarSesion();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') window.location.href = '/';
+    }
+    if (res.status === 403 && /modo administrador/i.test(data.error || '')) {
+      // El token de administrador expiró: salir del modo administrador.
+      setAdminToken(null);
+    }
+    throw new ApiError(res.status, data.error || options.fallback || 'Error de conexión con el servidor');
   }
-  return res.json();
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
 }
 
-export async function deleteCategoria(nombre: string) {
-  const res = await fetch(`${BASE}/api/categorias/${encodeURIComponent(nombre)}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al eliminar categoría');
-  }
-  return res.json();
+const get = <T = any>(path: string, fallback?: string) => request<T>(path, { fallback });
+const send = <T = any>(method: string, path: string, body?: unknown, fallback?: string) => request<T>(path, { method, body, fallback });
+
+// ---------------------------------------------------------------------------
+// Autenticación
+// ---------------------------------------------------------------------------
+
+export async function login(usuario: string, password: string): Promise<UsuarioSesion> {
+  const data = await send<{ token: string; usuario: UsuarioSesion }>('POST', '/api/auth/login', { usuario: usuario.trim(), password }, 'Usuario o contraseña incorrectos');
+  cerrarSesion();
+  escribir('local', TOKEN_KEY, data.token);
+  escribir('local', USUARIO_KEY, JSON.stringify(data.usuario));
+  return data.usuario;
 }
 
-export async function getProductoPorCodigo(codigo: string) {
-  const res = await fetch(`${BASE}/api/productos/codigo/${codigo}`);
-  if (!res.ok) throw new Error('Producto no encontrado');
-  return res.json();
+export async function verifyAdminPassword(password: string): Promise<{ ok: true }> {
+  const data = await send<{ token: string }>('POST', '/api/auth/verify-admin', { password }, 'Contraseña incorrecta');
+  setAdminToken(data.token);
+  return { ok: true };
 }
 
-export async function getVentas() {
-  const res = await fetch(`${BASE}/api/ventas`);
-  if (!res.ok) throw new Error('Error al cargar ventas');
-  return res.json();
-}
+// ---------------------------------------------------------------------------
+// Productos y categorías
+// ---------------------------------------------------------------------------
 
-export async function postVenta(body: { items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[]; total: number; cliente?: string; clienteId?: number; pagado?: number }) {
-  const res = await fetch(`${BASE}/api/ventas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al registrar venta');
-  return res.json();
-}
+export type Producto = {
+  id: number;
+  nombre: string;
+  codigo?: string;
+  categoria: string;
+  precio: number;
+  costo?: number;
+  stock: number;
+  stockMinimo?: number;
+  estado?: string;
+  /** Si true, el producto se vende por peso (kg). Precio = precio por kg, stock = stock en kg */
+  esGranel?: boolean;
+  proveedorId?: number;
+};
+
+export const getProductos = (proveedorId?: number) =>
+  get(proveedorId != null ? `/api/productos?proveedorId=${proveedorId}` : '/api/productos', 'Error al cargar productos');
+
+export const getCategorias = () => get('/api/categorias', 'Error al cargar categorías');
+
+export const postCategoria = (nombre: string) => send('POST', '/api/categorias', { nombre: nombre.trim() }, 'Error al crear categoría');
+
+export const deleteCategoria = (nombre: string) => send('DELETE', `/api/categorias/${encodeURIComponent(nombre)}`, undefined, 'Error al eliminar categoría');
+
+export const getProductoPorCodigo = (codigo: string) => get(`/api/productos/codigo/${encodeURIComponent(codigo)}`, 'Producto no encontrado');
+
+export const postProducto = (body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) =>
+  send('POST', '/api/productos', body, 'Error al crear producto');
+
+export const putProducto = (id: number, body: { nombre?: string; codigo?: string; categoria?: string; precio?: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number | null }) =>
+  send('PUT', `/api/productos/${id}`, body, 'Error al actualizar producto');
+
+export const deleteProducto = (id: number) => send<void>('DELETE', `/api/productos/${id}`, undefined, 'Error al eliminar producto');
+
+// ---------------------------------------------------------------------------
+// Ventas, abonos y devoluciones
+// ---------------------------------------------------------------------------
+
+export type MovimientoVenta = { fecha: string; monto: number; motivo?: string };
+
+export type Venta = {
+  id: number;
+  fecha: string;
+  items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[];
+  total: number;
+  pagado?: number;
+  pendiente?: number;
+  cliente?: string;
+  clienteId?: number;
+  estado?: 'pagado' | 'pendiente' | 'cancelada' | string;
+  abonos?: MovimientoVenta[];
+  reembolsos?: MovimientoVenta[];
+  fechaCancelacion?: string;
+};
+
+export const getVentas = (): Promise<Venta[]> => get('/api/ventas', 'Error al cargar ventas');
+
+export const postVenta = (body: { items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[]; total: number; cliente?: string; clienteId?: number; pagado?: number }) =>
+  send<Venta & { cambio: number }>('POST', '/api/ventas', body, 'Error al registrar venta');
 
 export type VentaItemEdit = { id: number; nombre: string; precio: number; cantidad: number; costo?: number };
 
-export async function putVenta(ventaId: number, body: { items: VentaItemEdit[] }) {
-  const res = await fetch(`${BASE}/api/ventas/${ventaId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al actualizar venta');
-  }
-  return res.json();
-}
+export const putVenta = (ventaId: number, body: { items: VentaItemEdit[] }) =>
+  send<Venta & { reembolso: number }>('PUT', `/api/ventas/${ventaId}`, body, 'Error al actualizar venta');
 
-export type DevolucionItem = { productoId: number; nombre: string; cantidad: number; precio: number; tipo: 'revendible' | 'perdida' };
-export type Devolucion = { id: number; fecha: string; ventaId: number; items: DevolucionItem[] };
-export type PerdidaItem = { id: number; fecha: string; ventaId: number; productoId: number; nombre: string; cantidad: number; precio: number; valorPerdida: number };
+export const cancelarVenta = (ventaId: number) => send<Venta>('POST', `/api/ventas/${ventaId}/cancelar`, undefined, 'Error al cancelar la venta');
 
-export async function getDevoluciones(): Promise<Devolucion[]> {
-  const res = await fetch(`${BASE}/api/devoluciones`);
-  if (!res.ok) throw new Error('Error al cargar devoluciones');
-  return res.json();
-}
+export const abonarVenta = (ventaId: number, monto: number) => send<Venta>('PUT', `/api/ventas/${ventaId}/abonar`, { monto }, 'Error al registrar abono');
 
-export async function getPerdidas(): Promise<PerdidaItem[]> {
-  const res = await fetch(`${BASE}/api/devoluciones/perdidas`);
-  if (!res.ok) throw new Error('Error al cargar pérdidas');
-  return res.json();
-}
+export type DevolucionItem = { productoId: number; nombre: string; cantidad: number; precio: number; costo?: number; tipo: 'revendible' | 'perdida' };
+export type Devolucion = { id: number; fecha: string; ventaId: number; items: DevolucionItem[]; reembolso?: number; ajusteCosto?: number };
+export type PerdidaItem = { id: number; fecha: string; ventaId: number; productoId: number; nombre: string; cantidad: number; precio: number; valorPerdida: number; costo?: number; costoPerdida?: number };
 
-export async function postDevolucion(body: { ventaId?: number | null; items: { id: number; nombre: string; cantidad: number; precio: number; tipo: 'revendible' | 'perdida' }[] }) {
-  const res = await fetch(`${BASE}/api/devoluciones`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al registrar devolución');
-  }
-  return res.json();
-}
+export const getDevoluciones = (): Promise<Devolucion[]> => get('/api/devoluciones', 'Error al cargar devoluciones');
 
-export async function abonarVenta(ventaId: number, monto: number) {
-  const res = await fetch(`${BASE}/api/ventas/${ventaId}/abonar`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monto }),
-  });
-  if (!res.ok) throw new Error('Error al registrar abono');
-  return res.json();
-}
+export const getPerdidas = (): Promise<PerdidaItem[]> => get('/api/devoluciones/perdidas', 'Error al cargar pérdidas');
 
-export async function getClientes() {
-  const res = await fetch(`${BASE}/api/clientes`);
-  if (!res.ok) throw new Error('Error al cargar clientes');
-  return res.json();
-}
+export const postDevolucion = (body: { ventaId?: number | null; items: { id: number; nombre: string; cantidad: number; precio: number; tipo: 'revendible' | 'perdida' }[] }) =>
+  send<Devolucion>('POST', '/api/devoluciones', body, 'Error al registrar devolución');
 
-export async function postCliente(body: { nombre: string; telefono?: string; email?: string; direccion?: string }) {
-  const res = await fetch(`${BASE}/api/clientes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al crear cliente');
-  return res.json();
-}
+// ---------------------------------------------------------------------------
+// Clientes
+// ---------------------------------------------------------------------------
 
-export async function putCliente(id: number, body: { nombre?: string; telefono?: string; email?: string; direccion?: string }) {
-  const res = await fetch(`${BASE}/api/clientes/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar cliente');
-  return res.json();
-}
+export type Cliente = {
+  id: number;
+  nombre: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+};
 
-export async function deleteCliente(id: number) {
-  const res = await fetch(`${BASE}/api/clientes/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar cliente');
-}
+export const getClientes = () => get('/api/clientes', 'Error al cargar clientes');
 
-// Proveedores
+export const postCliente = (body: { nombre: string; telefono?: string; email?: string; direccion?: string }) => send('POST', '/api/clientes', body, 'Error al crear cliente');
+
+export const putCliente = (id: number, body: { nombre?: string; telefono?: string; email?: string; direccion?: string }) =>
+  send('PUT', `/api/clientes/${id}`, body, 'Error al actualizar cliente');
+
+export const deleteCliente = (id: number) => send<void>('DELETE', `/api/clientes/${id}`, undefined, 'Error al eliminar cliente');
+
+// ---------------------------------------------------------------------------
+// Proveedores y cuentas con proveedores
+// ---------------------------------------------------------------------------
+
 export type Proveedor = {
   id: number;
   nombre: string;
@@ -155,40 +244,15 @@ export type Proveedor = {
   direccion?: string;
 };
 
-export async function getProveedores() {
-  const res = await fetch(`${BASE}/api/proveedores`);
-  if (!res.ok) throw new Error('Error al cargar proveedores');
-  return res.json();
-}
+export const getProveedores = () => get('/api/proveedores', 'Error al cargar proveedores');
 
-export async function postProveedor(body: { nombre: string; telefono?: string; email?: string; direccion?: string }) {
-  const res = await fetch(`${BASE}/api/proveedores`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al crear proveedor');
-  return res.json();
-}
+export const postProveedor = (body: { nombre: string; telefono?: string; email?: string; direccion?: string }) => send('POST', '/api/proveedores', body, 'Error al crear proveedor');
 
-export async function putProveedor(id: number, body: { nombre?: string; telefono?: string; email?: string; direccion?: string }) {
-  const res = await fetch(`${BASE}/api/proveedores/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar proveedor');
-  return res.json();
-}
+export const putProveedor = (id: number, body: { nombre?: string; telefono?: string; email?: string; direccion?: string }) =>
+  send('PUT', `/api/proveedores/${id}`, body, 'Error al actualizar proveedor');
 
-export async function deleteProveedor(id: number) {
-  const res = await fetch(`${BASE}/api/proveedores/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar proveedor');
-}
+export const deleteProveedor = (id: number) => send<void>('DELETE', `/api/proveedores/${id}`, undefined, 'Error al eliminar proveedor');
 
-// Cuentas con proveedores (deudas y pagos)
 export type CuentaProveedorResumen = {
   proveedorId: number;
   proveedorNombre: string;
@@ -207,38 +271,20 @@ export type MovimientoCuentaProveedor = {
   monto: number;
 };
 
-export async function getCuentasProveedoresResumen(): Promise<CuentaProveedorResumen[]> {
-  const res = await fetch(`${BASE}/api/cuentas-proveedores`);
-  if (!res.ok) throw new Error('Error al cargar cuentas de proveedores');
-  return res.json();
-}
+export const getCuentasProveedoresResumen = (): Promise<CuentaProveedorResumen[]> => get('/api/cuentas-proveedores', 'Error al cargar cuentas de proveedores');
 
-export async function getMovimientosProveedor(proveedorId: number): Promise<MovimientoCuentaProveedor[]> {
-  const res = await fetch(`${BASE}/api/cuentas-proveedores/${proveedorId}`);
-  if (!res.ok) throw new Error('Error al cargar movimientos del proveedor');
-  return res.json();
-}
+export const getMovimientosProveedor = (proveedorId: number): Promise<MovimientoCuentaProveedor[]> =>
+  get(`/api/cuentas-proveedores/${proveedorId}`, 'Error al cargar movimientos del proveedor');
 
-export async function postMovimientoProveedor(body: {
-  proveedorId: number;
-  tipo: 'deuda' | 'pago';
-  monto: number;
-  descripcion?: string;
-  fecha?: string;
-}): Promise<MovimientoCuentaProveedor> {
-  const res = await fetch(`${BASE}/api/cuentas-proveedores`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al registrar movimiento con proveedor');
-  }
-  return res.json();
-}
+export const postMovimientoProveedor = (body: { proveedorId: number; tipo: 'deuda' | 'pago'; monto: number; descripcion?: string; fecha?: string }): Promise<MovimientoCuentaProveedor> =>
+  send('POST', '/api/cuentas-proveedores', body, 'Error al registrar movimiento con proveedor');
 
+export const deleteMovimientoProveedor = (id: number) => send<void>('DELETE', `/api/cuentas-proveedores/movimiento/${id}`, undefined, 'Error al eliminar movimiento');
+
+// ---------------------------------------------------------------------------
 // Lienzo Charro: ingresos (renta caballos) y gastos (mantención)
+// ---------------------------------------------------------------------------
+
 export type MovimientoLienzo = {
   id: number;
   fecha: string;
@@ -247,92 +293,26 @@ export type MovimientoLienzo = {
   monto: number;
 };
 
-export async function getMovimientosLienzo(): Promise<MovimientoLienzo[]> {
-  const res = await fetch(`${BASE}/api/lienzo-charro`);
-  if (!res.ok) throw new Error('Error al cargar movimientos Lienzo Charro');
-  return res.json();
-}
+export const getMovimientosLienzo = (): Promise<MovimientoLienzo[]> => get('/api/lienzo-charro', 'Error al cargar movimientos Lienzo Charro');
 
-export async function postMovimientoLienzo(body: {
-  fecha?: string;
-  tipo: 'ingreso' | 'gasto';
-  descripcion?: string;
-  monto: number;
-}): Promise<MovimientoLienzo> {
-  const res = await fetch(`${BASE}/api/lienzo-charro`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al registrar movimiento');
-  }
-  return res.json();
-}
+export const postMovimientoLienzo = (body: { fecha?: string; tipo: 'ingreso' | 'gasto'; descripcion?: string; monto: number }): Promise<MovimientoLienzo> =>
+  send('POST', '/api/lienzo-charro', body, 'Error al registrar movimiento');
 
-export async function deleteMovimientoLienzo(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/api/lienzo-charro/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al eliminar movimiento');
-}
+export const deleteMovimientoLienzo = (id: number): Promise<void> => send('DELETE', `/api/lienzo-charro/${id}`, undefined, 'Error al eliminar movimiento');
 
-export async function postProducto(body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) {
-  const res = await fetch(`${BASE}/api/productos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al crear producto');
-  return res.json();
-}
-
-export async function putProducto(id: number, body: { nombre?: string; codigo?: string; categoria?: string; precio?: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number | null }) {
-  const res = await fetch(`${BASE}/api/productos/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar producto');
-  return res.json();
-}
-
-export async function deleteProducto(id: number) {
-  const res = await fetch(`${BASE}/api/productos/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar producto');
-}
-
-export type Producto = {
-  id: number;
-  nombre: string;
-  codigo?: string;
-  categoria: string;
-  precio: number;
-  costo?: number;
-  stock: number;
-  stockMinimo?: number;
-  estado?: string;
-  /** Si true, el producto se vende por peso (kg). Precio = precio por kg, stock = stock en kg */
-  esGranel?: boolean;
-  proveedorId?: number;
-};
-
-export type Cliente = {
-  id: number;
-  nombre: string;
-  telefono?: string;
-  email?: string;
-  direccion?: string;
-};
-
+// ---------------------------------------------------------------------------
 // Gastos Administrativos
+// ---------------------------------------------------------------------------
+
 export type GastoAdmin = {
   id: number;
   fecha: string;
   descripcion: string;
   categoria: string;
   monto: number;
+  /** Generado automáticamente desde una nómina o desde Lienzo Charro (no se edita aquí). */
+  nominaId?: number;
+  lienzoId?: number;
 };
 
 export const CATEGORIAS_GASTOS = [
@@ -350,40 +330,19 @@ export const CATEGORIAS_GASTOS = [
   'Gastos de la empresa',
 ] as const;
 
-export async function getGastosAdmin() {
-  const res = await fetch(`${BASE}/api/gastos-admin`);
-  if (!res.ok) throw new Error('Error al cargar gastos');
-  return res.json();
-}
+export const getGastosAdmin = () => get('/api/gastos-admin', 'Error al cargar gastos');
 
-export async function postGastoAdmin(body: { fecha?: string; descripcion: string; categoria: string; monto: number }) {
-  const res = await fetch(`${BASE}/api/gastos-admin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al registrar gasto');
-  return res.json();
-}
+export const postGastoAdmin = (body: { fecha?: string; descripcion: string; categoria: string; monto: number }) => send('POST', '/api/gastos-admin', body, 'Error al registrar gasto');
 
-export async function putGastoAdmin(id: number, body: { fecha?: string; descripcion?: string; categoria?: string; monto?: number }) {
-  const res = await fetch(`${BASE}/api/gastos-admin/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar gasto');
-  return res.json();
-}
+export const putGastoAdmin = (id: number, body: { fecha?: string; descripcion?: string; categoria?: string; monto?: number }) =>
+  send('PUT', `/api/gastos-admin/${id}`, body, 'Error al actualizar gasto');
 
-export async function deleteGastoAdmin(id: number) {
-  const res = await fetch(`${BASE}/api/gastos-admin/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar gasto');
-}
+export const deleteGastoAdmin = (id: number) => send<void>('DELETE', `/api/gastos-admin/${id}`, undefined, 'Error al eliminar gasto');
 
+// ---------------------------------------------------------------------------
 // Metas de ahorro (Deudas / objetivos de ahorro)
+// ---------------------------------------------------------------------------
+
 export type MetaAhorro = {
   id: number;
   nombre: string;
@@ -392,67 +351,26 @@ export type MetaAhorro = {
   estado: string;
 };
 
-export async function getMetasAhorro() {
-  const res = await fetch(`${BASE}/api/deudas`);
-  if (!res.ok) throw new Error('Error al cargar metas de ahorro');
-  return res.json();
-}
+export const getMetasAhorro = () => get('/api/deudas', 'Error al cargar metas de ahorro');
 
-export async function postMetaAhorro(body: { nombre: string; meta: number; fechaLimite: string }) {
-  const res = await fetch(`${BASE}/api/deudas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al crear meta de ahorro');
-  }
-  return res.json();
-}
+export const postMetaAhorro = (body: { nombre: string; meta: number; fechaLimite: string }) => send('POST', '/api/deudas', body, 'Error al crear meta de ahorro');
 
-export async function putMetaAhorro(id: number, body: { nombre?: string; meta?: number; fechaLimite?: string; estado?: string }) {
-  const res = await fetch(`${BASE}/api/deudas/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al actualizar meta de ahorro');
-  }
-  return res.json();
-}
+export const putMetaAhorro = (id: number, body: { nombre?: string; meta?: number; fechaLimite?: string; estado?: string }) =>
+  send('PUT', `/api/deudas/${id}`, body, 'Error al actualizar meta de ahorro');
 
-export async function deleteMetaAhorro(id: number) {
-  const res = await fetch(`${BASE}/api/deudas/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Error al eliminar meta de ahorro');
-  }
-}
+export const deleteMetaAhorro = (id: number) => send<void>('DELETE', `/api/deudas/${id}`, undefined, 'Error al eliminar meta de ahorro');
 
 export type RegistroAhorroDia = { fecha: string; monto: number };
 
-export async function getRegistrosAhorro(metaId: number): Promise<RegistroAhorroDia[]> {
-  const res = await fetch(`${BASE}/api/deudas/${metaId}/registros`);
-  if (!res.ok) throw new Error('Error al cargar registros');
-  return res.json();
-}
+export const getRegistrosAhorro = (metaId: number): Promise<RegistroAhorroDia[]> => get(`/api/deudas/${metaId}/registros`, 'Error al cargar registros');
 
-export async function putRegistroDia(metaId: number, fecha: string, monto: number): Promise<RegistroAhorroDia> {
-  const res = await fetch(`${BASE}/api/deudas/${metaId}/dias`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fecha: fecha.slice(0, 10), monto }),
-  });
-  if (!res.ok) throw new Error('Error al guardar día');
-  return res.json();
-}
+export const putRegistroDia = (metaId: number, fecha: string, monto: number): Promise<RegistroAhorroDia> =>
+  send('PUT', `/api/deudas/${metaId}/dias`, { fecha: fecha.slice(0, 10), monto }, 'Error al guardar día');
 
-// Empleados (trabajadores) y nóminas
+// ---------------------------------------------------------------------------
+// Empleados, nóminas y adelantos
+// ---------------------------------------------------------------------------
+
 export type Empleado = {
   id: number;
   nombre: string;
@@ -467,44 +385,17 @@ export type Nomina = {
   total: number;
 };
 
-export async function getEmpleados() {
-  const res = await fetch(`${BASE}/api/empleados`);
-  if (!res.ok) throw new Error('Error al cargar empleados');
-  return res.json();
-}
+export const getEmpleados = () => get('/api/empleados', 'Error al cargar empleados');
 
-export async function postEmpleado(body: { nombre: string; sueldo: number; puesto?: string }) {
-  const res = await fetch(`${BASE}/api/empleados`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al crear empleado');
-  return res.json();
-}
+export const postEmpleado = (body: { nombre: string; sueldo: number; puesto?: string }) => send('POST', '/api/empleados', body, 'Error al crear empleado');
 
-export async function putEmpleado(id: number, body: { nombre?: string; sueldo?: number; puesto?: string }) {
-  const res = await fetch(`${BASE}/api/empleados/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar empleado');
-  return res.json();
-}
+export const putEmpleado = (id: number, body: { nombre?: string; sueldo?: number; puesto?: string }) => send('PUT', `/api/empleados/${id}`, body, 'Error al actualizar empleado');
 
-export async function deleteEmpleado(id: number) {
-  const res = await fetch(`${BASE}/api/empleados/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar empleado');
-}
+export const deleteEmpleado = (id: number) => send<void>('DELETE', `/api/empleados/${id}`, undefined, 'Error al eliminar empleado');
 
-export async function getNominas() {
-  const res = await fetch(`${BASE}/api/nominas`);
-  if (!res.ok) throw new Error('Error al cargar nóminas');
-  return res.json();
-}
+export const getNominas = () => get('/api/nominas', 'Error al cargar nóminas');
+
+export const deleteNomina = (id: number) => send<{ ok: true; aviso?: string }>('DELETE', `/api/nominas/${id}`, undefined, 'Error al eliminar nómina');
 
 // Adelantos de sueldo (se descuentan en las siguientes nóminas)
 export type Adelanto = {
@@ -516,47 +407,21 @@ export type Adelanto = {
   montoPorSemana: number;
   saldoPendiente: number;
   fecha: string;
-  estado: 'activo' | 'liquidado';
+  estado: 'activo' | 'liquidado' | 'cancelado';
 };
 
-export async function getAdelantos(estado?: 'activo' | 'liquidado') {
-  const url = estado ? `${BASE}/api/adelantos?estado=${estado}` : `${BASE}/api/adelantos`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Error al cargar adelantos');
-  return res.json();
-}
+export const getAdelantos = (estado?: 'activo' | 'liquidado') => get(estado ? `/api/adelantos?estado=${estado}` : '/api/adelantos', 'Error al cargar adelantos');
 
-export async function postAdelanto(body: { empleadoId: number; montoTotal: number; semanas: number }) {
-  const res = await fetch(`${BASE}/api/adelantos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al registrar adelanto');
-  return res.json();
-}
+export const postAdelanto = (body: { empleadoId: number; montoTotal: number; semanas: number }) => send('POST', '/api/adelantos', body, 'Error al registrar adelanto');
 
-export async function postNomina(body: {
-  items: { empleadoId: number; nombre: string; monto: number; diasTrabajados?: number; semana?: string }[];
-  total?: number;
-  fecha?: string;
-}) {
-  const res = await fetch(`${BASE}/api/nominas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al procesar nómina');
-  return res.json();
-}
+export const deleteAdelanto = (id: number) => send<{ ok: true; eliminado: boolean }>('DELETE', `/api/adelantos/${id}`, undefined, 'Error al cancelar adelanto');
 
+export const postNomina = (body: { items: { empleadoId: number; nombre: string; monto: number; diasTrabajados?: number; semana?: string }[]; total?: number; fecha?: string }) =>
+  send('POST', '/api/nominas', body, 'Error al procesar nómina');
+
+// ---------------------------------------------------------------------------
 // Usuarios del sistema (configuración)
-export type PermisosPOS = {
-  hacerVentas: boolean;
-  darDeBajaProductos: boolean;
-  actualizarProductos: boolean;
-  borrarProductos: boolean;
-};
+// ---------------------------------------------------------------------------
 
 export type Usuario = {
   id: number;
@@ -566,73 +431,12 @@ export type Usuario = {
   permisos: PermisosPOS;
 };
 
-export async function getUsuarios() {
-  const res = await fetch(`${BASE}/api/usuarios`);
-  if (!res.ok) throw new Error('Error al cargar usuarios');
-  return res.json();
-}
+export const getUsuarios = () => get('/api/usuarios', 'Error al cargar usuarios');
 
-export async function postUsuario(body: {
-  email: string;
-  password: string;
-  nombre: string;
-  telefono?: string;
-  permisos?: PermisosPOS;
-}) {
-  const res = await fetch(`${BASE}/api/usuarios`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Error al crear usuario');
-  }
-  return res.json();
-}
+export const postUsuario = (body: { email: string; password: string; nombre: string; telefono?: string; permisos?: PermisosPOS }) =>
+  send('POST', '/api/usuarios', body, 'Error al crear usuario');
 
-export async function putUsuario(
-  id: number,
-  body: { email?: string; password?: string; nombre?: string; telefono?: string; permisos?: PermisosPOS }
-) {
-  const res = await fetch(`${BASE}/api/usuarios/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error('Error al actualizar usuario');
-  return res.json();
-}
+export const putUsuario = (id: number, body: { email?: string; password?: string; nombre?: string; telefono?: string; permisos?: PermisosPOS }) =>
+  send('PUT', `/api/usuarios/${id}`, body, 'Error al actualizar usuario');
 
-export async function deleteUsuario(id: number) {
-  const res = await fetch(`${BASE}/api/usuarios/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error al eliminar usuario');
-}
-
-export async function login(usuario: string, password: string): Promise<{ ok: true }> {
-  const res = await fetch(`${BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuario: usuario.trim(), password }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Usuario o contraseña incorrectos');
-  }
-  return res.json();
-}
-
-export async function verifyAdminPassword(password: string): Promise<{ ok: true }> {
-  const res = await fetch(`${BASE}/api/auth/verify-admin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || 'Contraseña incorrecta');
-  }
-  return res.json();
-}
+export const deleteUsuario = (id: number) => send<void>('DELETE', `/api/usuarios/${id}`, undefined, 'Error al eliminar usuario');

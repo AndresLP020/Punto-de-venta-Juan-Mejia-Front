@@ -1,15 +1,18 @@
 'use client';
 
 import { createContext, useContext, useCallback, useEffect, useState } from 'react';
-
-const STORAGE_KEY = 'pos-admin-mode';
+import { getUsuarioSesion, setAdminToken, tieneAdminToken, type PermisosPOS, type UsuarioSesion } from '@/lib/api';
 
 type AdminModeContextType = {
   isAdminMode: boolean;
   setAdminMode: (value: boolean) => void;
+  /** Llamar después de verifyAdminPassword (que ya guardó el token de administrador). */
   entrarAdminMode: () => void;
   showMensajeIngreso: boolean;
   cerrarMensajeIngreso: () => void;
+  usuario: UsuarioSesion | null;
+  /** El modo administrador concede todos los permisos. */
+  puede: (permiso: keyof PermisosPOS) => boolean;
 };
 
 const AdminModeContext = createContext<AdminModeContextType | null>(null);
@@ -17,50 +20,37 @@ const AdminModeContext = createContext<AdminModeContextType | null>(null);
 export function AdminModeProvider({ children }: { children: React.ReactNode }) {
   const [isAdminMode, setState] = useState(false);
   const [showMensajeIngreso, setShowMensajeIngreso] = useState(false);
+  const [usuario, setUsuario] = useState<UsuarioSesion | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(STORAGE_KEY) === '1';
-      setState(stored);
-    } catch {}
+    // El modo administrador depende de que exista un token de administrador firmado por el servidor;
+    // modificar sessionStorage a mano no da acceso porque la API valida el token.
+    setState(tieneAdminToken());
+    setUsuario(getUsuarioSesion());
   }, []);
 
   const setAdminMode = useCallback((value: boolean) => {
-    setState(value);
-    try {
-      if (value) sessionStorage.setItem(STORAGE_KEY, '1');
-      else sessionStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    if (!value) setShowMensajeIngreso(false);
+    if (!value) {
+      setAdminToken(null);
+      setShowMensajeIngreso(false);
+    }
+    setState(value && tieneAdminToken());
   }, []);
 
   const entrarAdminMode = useCallback(() => {
-    setState(true);
+    setState(tieneAdminToken());
     setShowMensajeIngreso(true);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, '1');
-    } catch {}
   }, []);
 
   const cerrarMensajeIngreso = useCallback(() => setShowMensajeIngreso(false), []);
 
-  const value: AdminModeContextType = {
-    isAdminMode,
-    setAdminMode: (v) => {
-      setState(v);
-      try {
-        if (v) sessionStorage.setItem(STORAGE_KEY, '1');
-        else sessionStorage.removeItem(STORAGE_KEY);
-      } catch {}
-      if (!v) setShowMensajeIngreso(false);
-    },
-    entrarAdminMode,
-    showMensajeIngreso,
-    cerrarMensajeIngreso,
-  };
+  const puede = useCallback(
+    (permiso: keyof PermisosPOS) => isAdminMode || Boolean(usuario?.permisos?.[permiso]),
+    [isAdminMode, usuario]
+  );
 
   return (
-    <AdminModeContext.Provider value={value}>
+    <AdminModeContext.Provider value={{ isAdminMode, setAdminMode, entrarAdminMode, showMensajeIngreso, cerrarMensajeIngreso, usuario, puede }}>
       {children}
     </AdminModeContext.Provider>
   );

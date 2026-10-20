@@ -90,6 +90,10 @@ export default function ConfiguracionPage() {
       setError('La contraseña es obligatoria para nuevos usuarios');
       return;
     }
+    if (form.password && form.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
     try {
       if (editingId) {
         await putUsuario(editingId, {
@@ -121,7 +125,7 @@ export default function ConfiguracionPage() {
       await deleteUsuario(id);
       await cargarDatos();
     } catch (err) {
-      console.error(err);
+      alert(err instanceof Error ? err.message : 'Error al eliminar el usuario');
     }
   };
 
@@ -168,7 +172,7 @@ export default function ConfiguracionPage() {
 
         {/* Usuarios */}
         <section className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
-          <div className="px-6 py-4 border-b border-slate-700/80 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-slate-700/80 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">Usuarios del sistema</h2>
               <p className="text-slate-400 text-sm mt-0.5">Correo, contraseña, nombre, teléfono y permisos sobre el punto de venta</p>
@@ -194,8 +198,34 @@ export default function ConfiguracionPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <>
+            {/* Celular: tarjetas */}
+            <ul className="md:hidden divide-y divide-slate-700/60">
+              {usuarios.map((u) => (
+                <li key={u.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white truncate">{u.nombre || '—'}</p>
+                      <p className="text-sm text-slate-300 break-all">{u.email}</p>
+                      {u.telefono && <p className="text-sm text-slate-400">{u.telefono}</p>}
+                    </div>
+                    <div className="flex flex-shrink-0 gap-1">
+                      <button onClick={() => abrirModal(u)} className="p-2 rounded-lg bg-slate-700/70 text-slate-200" title="Editar">✎</button>
+                      <button onClick={() => eliminarUsuario(u.id)} className="p-2 rounded-lg bg-red-500/20 text-red-300" title="Eliminar">🗑</button>
+                    </div>
+                  </div>
+                  <span className="mt-2 flex flex-wrap gap-1">
+                    {u.permisos.hacerVentas && <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs">Ventas</span>}
+                    {u.permisos.darDeBajaProductos && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 text-xs">Dar de baja</span>}
+                    {u.permisos.actualizarProductos && <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">Actualizar prod.</span>}
+                    {u.permisos.borrarProductos && <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Borrar prod.</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* Tablet y computadora: tabla */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="tabla-acciones w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-700 bg-slate-800">
                     <th className="text-left text-slate-400 font-semibold px-6 py-4">Nombre</th>
@@ -228,6 +258,7 @@ export default function ConfiguracionPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>

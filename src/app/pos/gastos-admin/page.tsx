@@ -5,7 +5,7 @@ import {
   getGastosAdmin,
   getVentas,
   getProductos,
-  getNominas,
+  getDevoluciones,
   getMovimientosLienzo,
   postGastoAdmin,
   putGastoAdmin,
@@ -13,23 +13,17 @@ import {
   CATEGORIAS_GASTOS,
   type GastoAdmin,
 } from '@/lib/api';
-import type { Producto } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
-
-type VentaConItems = {
-  fecha: string;
-  total: number;
-  pagado?: number;
-  items?: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[];
-};
+import type { Producto, Venta, Devolucion, MovimientoLienzo } from '@/lib/api';
+import { formatearMoneda, hoyISO, mensajeError, parseFecha } from '@/lib/utils';
+import { calcularFinanzas, rangoMesActual } from '@/lib/finanzas';
 type PeriodoResumen = 'diario' | 'semanal' | 'mensual' | 'anual' | 'personalizado';
 
 export default function GastosAdminPage() {
   const [gastos, setGastos] = useState<GastoAdmin[]>([]);
-  const [ventas, setVentas] = useState<VentaConItems[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [nominas, setNominas] = useState<{ fecha: string; total: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
+  const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
+  const [movimientosLienzo, setMovimientosLienzo] = useState<MovimientoLienzo[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('Todos');
   const [periodoResumen, setPeriodoResumen] = useState<PeriodoResumen>('mensual');
@@ -42,23 +36,23 @@ export default function GastosAdminPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [g, v, p, n, lienzo] = await Promise.all([
+      const [g, v, p, d, lienzo] = await Promise.all([
         getGastosAdmin(),
         getVentas(),
         getProductos(),
-        getNominas(),
+        getDevoluciones().catch(() => []),
         getMovimientosLienzo().catch(() => []),
       ]);
       setGastos(g);
       setVentas(v);
       setProductos(p);
-      setNominas(n);
+      setDevoluciones(d);
       setMovimientosLienzo(lienzo);
     } catch {
       setGastos([]);
       setVentas([]);
       setProductos([]);
-      setNominas([]);
+      setDevoluciones([]);
       setMovimientosLienzo([]);
     } finally {
       setLoading(false);
@@ -73,52 +67,20 @@ export default function GastosAdminPage() {
   useEffect(() => {
     const hoy = new Date();
     const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    if (!fechaDesde) setFechaDesde(primerDia.toISOString().split('T')[0]);
-    if (!fechaHasta) setFechaHasta(hoy.toISOString().split('T')[0]);
+    if (!fechaDesde) setFechaDesde(hoyISO(primerDia));
+    if (!fechaHasta) setFechaHasta(hoyISO(hoy));
   }, []);
 
-  const ahora = new Date();
-  const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-  const finMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59);
-
-  const gastosEsteMes = gastos.filter((g) => {
-    const d = new Date(g.fecha);
-    return d >= inicioMes && d <= finMes;
-  });
-  const totalGastosMes = gastosEsteMes.reduce((s, g) => s + g.monto, 0);
-
-  const nominasEsteMes = nominas.filter((n) => {
-    const d = new Date(n.fecha);
-    return d >= inicioMes && d <= finMes;
-  });
-  const totalNominasMes = nominasEsteMes.reduce((s, n) => s + n.total, 0);
-
-  const ventasEsteMes = ventas.filter((v) => {
-    const d = new Date(v.fecha);
-    return d >= inicioMes && d <= finMes;
-  });
-  const ingresosMes = ventasEsteMes.reduce((s, v) => s + (v.pagado ?? v.total ?? 0), 0);
-  const ingresosLienzoMes = movimientosLienzo
-    .filter((m) => m.tipo === 'ingreso')
-    .filter((m) => {
-      const d = new Date(m.fecha);
-      return d >= inicioMes && d <= finMes;
-    })
-    .reduce((s, m) => s + m.monto, 0);
-  const ingresosTotalesMes = ingresosMes + ingresosLienzoMes;
-  // Costo de lo vendido (costo de productos). Usar costo guardado en ítem o, si no, costo actual del producto.
-  const costoVentasMes = ventasEsteMes.reduce((sum, venta) => {
-    const porcentajePagado = venta.total > 0 ? (venta.pagado ?? venta.total) / venta.total : 1;
-    return sum + (venta.items || []).reduce((itemSum, item) => {
-      const costoUnit = item.costo != null ? item.costo : (productos.find((p) => p.id === item.id)?.costo ?? 0);
-      return itemSum + costoUnit * item.cantidad * porcentajePagado;
-    }, 0);
-  }, 0);
-  const gananciaBrutaMes = ingresosTotalesMes - costoVentasMes;
-  // Fórmula unificada: Ganancia neta = Ingresos (ventas + Lienzo Charro) − Costo ventas − Gastos Admin − Nóminas
-  const gananciaNetaMes = gananciaBrutaMes - totalGastosMes - totalNominasMes;
+  // Fórmula unificada (lib/finanzas.ts): Ganancia neta = Ingresos − Costo ventas − Gastos Admin.
+  // Las nóminas ya están registradas aquí como gastos de categoría "Sueldos": no se restan dos veces.
+  const resumenMes = calcularFinanzas({ ventas, gastos, lienzo: movimientosLienzo, devoluciones, productos }, rangoMesActual());
+  const totalGastosMes = resumenMes.gastosAdmin;
+  const ingresosTotalesMes = resumenMes.ingresosTotales;
+  const costoVentasMes = resumenMes.costoVentas;
+  const gananciaBrutaMes = resumenMes.gananciaBruta;
+  const gananciaNetaMes = resumenMes.gananciaNeta;
   const efectivoDisponible = gananciaNetaMes;
-  const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesMes === 0 && (gastos.length > 0 || nominas.length > 0));
+  const efectivoBajo = efectivoDisponible < 0 || (ingresosTotalesMes === 0 && gastos.length > 0);
 
   const totalGeneral = gastos.reduce((s, g) => s + g.monto, 0);
 
@@ -145,9 +107,9 @@ export default function GastosAdminPage() {
   // Filtro por rango de fechas
   const gastosFiltrados = gastosPorCategoria.filter((g) => {
     if (!fechaDesde && !fechaHasta) return true;
-    const d = new Date(g.fecha);
-    const desde = fechaDesde ? new Date(fechaDesde) : null;
-    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : null;
+    const d = parseFecha(g.fecha);
+    const desde = fechaDesde ? parseFecha(fechaDesde) : null;
+    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59.999') : null;
     if (desde && d < desde) return false;
     if (hasta && d > hasta) return false;
     return true;
@@ -171,15 +133,14 @@ export default function GastosAdminPage() {
     if (gasto) {
       setEditingId(gasto.id);
       setForm({
-        fecha: gasto.fecha.split('T')[0],
+        fecha: /^\d{4}-\d{2}-\d{2}$/.test(gasto.fecha) ? gasto.fecha : hoyISO(new Date(gasto.fecha)),
         descripcion: gasto.descripcion,
         categoria: gasto.categoria,
         monto: String(gasto.monto),
       });
     } else {
       setEditingId(null);
-      const hoy = new Date().toISOString().split('T')[0];
-      setForm({ fecha: hoy, descripcion: '', categoria: 'Diversos', monto: '' });
+      setForm({ fecha: hoyISO(), descripcion: '', categoria: 'Diversos', monto: '' });
     }
     setModalAbierto(true);
   };
@@ -212,7 +173,7 @@ export default function GastosAdminPage() {
       await cargarDatos();
       cerrarModal();
     } catch (err) {
-      console.error(err);
+      alert(mensajeError(err, 'Error al guardar el gasto'));
     }
   };
 
@@ -222,12 +183,12 @@ export default function GastosAdminPage() {
       await deleteGastoAdmin(id);
       await cargarDatos();
     } catch (err) {
-      console.error(err);
+      alert(mensajeError(err, 'Error al eliminar el gasto'));
     }
   };
 
   const formatearFecha = (f: string) => {
-    return new Date(f).toLocaleDateString('es-MX', {
+    return parseFecha(f).toLocaleDateString('es-MX', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -250,7 +211,7 @@ export default function GastosAdminPage() {
   return (
     <div className="flex flex-col min-h-full text-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-6 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
             <span className="text-xl font-bold text-blue-400">$</span>
@@ -322,7 +283,7 @@ export default function GastosAdminPage() {
           <div className="rounded-2xl bg-slate-800/80 border border-emerald-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Ganancia Neta Mensual</p>
             <p className={`text-2xl font-bold mt-1 tabular-nums ${gananciaNetaMes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fm(gananciaNetaMes)}</p>
-            <p className="text-xs text-slate-500 mt-1">Ingresos − Costo ventas − Gastos Admin − Nóminas</p>
+            <p className="text-xs text-slate-500 mt-1">Ingresos − Costo ventas − Gastos Admin (incluye nóminas)</p>
           </div>
           <div className="rounded-2xl bg-slate-800/80 border border-violet-500/30 p-5 shadow-elevated">
             <p className="text-slate-400 text-sm font-medium">Efectivo Disponible</p>
@@ -447,7 +408,7 @@ export default function GastosAdminPage() {
         {/* Tabla de gastos */}
         <div className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="tabla-acciones w-full">
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-800">
                   <th className="text-left text-slate-400 font-semibold text-sm px-6 py-4">Fecha</th>
@@ -487,6 +448,11 @@ export default function GastosAdminPage() {
                       <td className="px-6 py-3 text-slate-400 text-sm">{g.categoria}</td>
                       <td className="px-6 py-3 text-right font-medium text-red-400 tabular-nums">{fm(g.monto)}</td>
                       <td className="px-6 py-3 text-right">
+                        {g.nominaId || g.lienzoId ? (
+                          <span className="text-xs text-slate-500" title="Se modifica desde Sueldos o Lienzo Charro">
+                            Automático
+                          </span>
+                        ) : (
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => abrirModal(g)}
@@ -507,6 +473,7 @@ export default function GastosAdminPage() {
                             </svg>
                           </button>
                         </div>
+                        )}
                       </td>
                     </tr>
                   ))

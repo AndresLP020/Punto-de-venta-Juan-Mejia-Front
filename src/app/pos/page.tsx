@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
+import { useAdminMode } from '@/contexts/AdminModeContext';
+import { escapeHtml } from '@/lib/utils';
 
 type CarritoItem = {
   producto: Producto;
@@ -28,7 +30,11 @@ function formatInputConComas(s: string): string {
   return withCommas;
 }
 
+const estaActivo = (p: Producto) => (p.estado || 'Activo') === 'Activo';
+
 export default function POSPage() {
+  const { puede } = useAdminMode();
+  const puedeVender = puede('hacerVentas');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -44,12 +50,13 @@ export default function POSPage() {
   const [productoGranelModal, setProductoGranelModal] = useState<Producto | null>(null);
   const [granelKg, setGranelKg] = useState<string>('1');
   const codigoInputRef = useRef<HTMLInputElement>(null);
-  const busquedaTimeoutRef = useRef<NodeJS.Timeout>();
+  const busquedaTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     Promise.all([getProductos(), getCategorias(), getClientes()])
       .then(([p, c, cl]) => {
-        setProductos(p);
+        // Los productos dados de baja no se pueden vender.
+        setProductos((p as Producto[]).filter(estaActivo));
         setCategorias(c);
         setClientes(cl);
       })
@@ -61,7 +68,7 @@ export default function POSPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const codigoBarrasTimeoutRef = useRef<NodeJS.Timeout>();
+  const codigoBarrasTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   
   useEffect(() => {
     if (codigoBarrasTimeoutRef.current) clearTimeout(codigoBarrasTimeoutRef.current);
@@ -82,6 +89,11 @@ export default function POSPage() {
     if (!codigo.trim()) return;
     try {
       const producto = await getProductoPorCodigo(codigo);
+      if (!estaActivo(producto)) {
+        alert(`"${producto.nombre}" está dado de baja y no se puede vender.`);
+        setCodigoBarras('');
+        return;
+      }
       if (producto.esGranel) {
         setGranelKg('1');
         setProductoGranelModal(producto);
@@ -226,6 +238,10 @@ export default function POSPage() {
       alert('El monto pagado debe ser válido');
       return;
     }
+    if (montoPago < totalCarrito && !clienteSeleccionado) {
+      alert('Para registrar una venta a crédito selecciona un cliente; si no, no se podrá cobrar el saldo pendiente.');
+      return;
+    }
     setEnviando(true);
     try {
       await postVenta({
@@ -247,7 +263,7 @@ export default function POSPage() {
       setMontoPagado('');
     } catch (err) {
       console.error(err);
-      alert('Error al registrar la venta');
+      alert(err instanceof Error ? err.message : 'Error al registrar la venta');
     } finally {
       setEnviando(false);
     }
@@ -290,7 +306,7 @@ export default function POSPage() {
             <h2>Punto de Venta</h2>
             <p><strong>Juan Mejía</strong></p>
             <p>${new Date().toLocaleString('es-MX')}</p>
-            ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${clienteSeleccionado.nombre}</div>` : ''}
+            ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(clienteSeleccionado.nombre)}</div>` : ''}
           </div>
           
           <div style="margin-bottom: 15px;">
@@ -299,7 +315,7 @@ export default function POSPage() {
           
           ${carrito.map((i) => `
             <div class="item">
-              <div class="item-name">${i.producto.nombre}</div>
+              <div class="item-name">${escapeHtml(i.producto.nombre)}</div>
               <div class="item-detail">
                 ${i.producto.esGranel ? i.cantidad.toFixed(2) + ' kg' : 'Cantidad: ' + i.cantidad} × $${formatearMoneda(i.precioVenta)} = $${formatearMoneda(i.precioVenta * i.cantidad)}
               </div>
@@ -349,8 +365,10 @@ export default function POSPage() {
     ventana.print();
   };
 
+  const irAlCarrito = () => document.getElementById('carrito-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   return (
-    <div className="flex flex-col h-full text-white">
+    <div className="flex flex-col md:h-full text-white pb-24 md:pb-0">
       {/* Modal peso producto a granel */}
       {productoGranelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setProductoGranelModal(null); setGranelKg('1'); }}>
@@ -425,9 +443,9 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      <div className="flex flex-col md:flex-1 md:flex-row md:min-h-0">
         {/* Columna central */}
-        <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-auto min-h-0">
+        <div className="flex flex-col p-3 sm:p-6 space-y-5 sm:space-y-6 md:flex-1 md:overflow-auto md:min-h-0">
           {/* Escáner de código de barras */}
           <div className="bg-slate-800/50 rounded-xl p-4 sm:p-5 border border-slate-700">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -574,7 +592,7 @@ export default function POSPage() {
         </div>
 
         {/* Panel lateral derecho */}
-        <div className="w-full md:w-96 min-h-0 border-t md:border-t-0 md:border-l border-slate-700 bg-slate-800 flex flex-col flex-shrink-0">
+        <div id="carrito-venta" className="w-full md:w-96 md:min-h-0 border-t md:border-t-0 md:border-l border-slate-700 bg-slate-800 flex flex-col flex-shrink-0 scroll-mt-20">
           {/* Botón Devoluciones */}
           <div className="p-3 sm:p-4 border-b border-slate-700">
             <Link
@@ -785,10 +803,11 @@ export default function POSPage() {
                   {/* Botón cobrar */}
                   <button
                     onClick={cobrar}
-                    disabled={carrito.length === 0 || enviando}
+                    disabled={carrito.length === 0 || enviando || !puedeVender}
+                    title={puedeVender ? undefined : 'Tu usuario no tiene permiso para hacer ventas'}
                     className="w-full py-3.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg transition shadow-lg touch-manipulation min-h-[48px]"
                   >
-                    {enviando ? 'Procesando...' : pendiente > 0 ? 'Registrar Venta con Crédito' : 'Cobrar e Imprimir'}
+                    {!puedeVender ? 'Sin permiso para vender' : enviando ? 'Procesando...' : pendiente > 0 ? 'Registrar Venta con Crédito' : 'Cobrar e Imprimir'}
                   </button>
                   {pendiente > 0 && (
                     <p className="text-xs text-amber-400 text-center">
@@ -801,6 +820,25 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Celular: resumen fijo del carrito */}
+      {carrito.length > 0 && (
+        <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#120b2e]/95 backdrop-blur px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={irAlCarrito}
+            className="flex w-full items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-cyan-500 px-4 py-3 text-white shadow-lg shadow-fuchsia-600/30 touch-manipulation"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-white/25 px-2 text-xs font-bold">
+                {carrito.length}
+              </span>
+              Ver carrito y cobrar
+            </span>
+            <span className="text-lg font-black tabular-nums">${formatearMoneda(totalCarrito)}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

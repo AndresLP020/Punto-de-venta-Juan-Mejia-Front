@@ -5,19 +5,22 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AdminModeProvider, useAdminMode } from '@/contexts/AdminModeContext';
 import { Sidebar, MobileHeaderTitle } from '@/components/Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
+import { haySesion, tieneAdminToken } from '@/lib/api';
 
 const RUTAS_SOLO_ADMIN = ['/pos/gastos-admin', '/pos/deudas', '/pos/sueldos', '/pos/reportes', '/pos/lienzo-charro', '/pos/ventas', '/pos/configuracion'];
 
 function AdminRouteGuard() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdminMode } = useAdminMode();
+  const { isAdminMode, setAdminMode } = useAdminMode();
 
   useEffect(() => {
-    if (pathname && !isAdminMode && RUTAS_SOLO_ADMIN.includes(pathname)) {
+    // Si el token de administrador venció, salir del modo administrador.
+    if (isAdminMode && !tieneAdminToken()) setAdminMode(false);
+    if (pathname && !tieneAdminToken() && RUTAS_SOLO_ADMIN.includes(pathname)) {
       router.replace('/pos/dashboard');
     }
-  }, [pathname, isAdminMode, router]);
+  }, [pathname, isAdminMode, setAdminMode, router]);
 
   return null;
 }
@@ -34,7 +37,7 @@ function AdminModeBanner() {
   };
 
   return (
-    <div className="sticky top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-slate-800/80 border-b border-amber-500/30 text-amber-100 shadow-lg shadow-black/10">
+    <div className="md:sticky md:top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500/40 via-pink-600/30 to-violet-700/40 backdrop-blur-md border-b border-pink-400/30 text-amber-50 shadow-lg shadow-pink-900/20">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-500/30 flex items-center justify-center">
           <svg className="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,16 +82,28 @@ export default function POSLayout({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [autorizado, setAutorizado] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Sin sesión iniciada no se muestra nada del sistema.
+    if (!haySesion()) router.replace('/');
+    else setAutorizado(true);
+  }, [router]);
+
+  if (!autorizado) {
+    return <div className="min-h-screen bg-slate-950" />;
+  }
 
   return (
     <ThemeProvider>
       <AdminModeProvider>
-        <div className="pos-layout flex h-screen bg-slate-950 overflow-hidden">
+        <div className="pos-layout flex h-screen bg-[#080616] overflow-hidden">
           <AdminRouteGuard />
           <Sidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
           <main className="flex-1 overflow-auto bg-slate-900/50 min-w-0 flex flex-col">
             {/* Barra móvil: menú hamburguesa + título */}
-            <header className="sticky top-0 z-[60] flex md:hidden items-center gap-3 px-3 py-3 bg-slate-900 border-b border-slate-800/80 safe-area-inset-top shrink-0">
+            <header className="sticky top-0 z-30 flex md:hidden items-center gap-3 px-3 py-3 bg-[#120b2e]/95 backdrop-blur border-b border-violet-500/20 safe-area-inset-top shrink-0">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}

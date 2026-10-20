@@ -2,16 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getVentas, getProductos, getGastosAdmin, getNominas, getMovimientosLienzo, type Producto } from '@/lib/api';
-import { formatearMoneda } from '@/lib/utils';
-
-type Venta = {
-  id: number;
-  fecha: string;
-  total: number;
-  pagado?: number;
-  items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[];
-};
+import { getVentas, getProductos, getGastosAdmin, getMovimientosLienzo, getDevoluciones, type Producto, type Venta, type GastoAdmin, type MovimientoLienzo, type Devolucion } from '@/lib/api';
+import { formatearMoneda, hoyISO, parseFecha } from '@/lib/utils';
+import { calcularFinanzas, netoCobrado } from '@/lib/finanzas';
 
 type FiltroPeriodo = 'hoy' | 'semana' | 'mes' | 'año' | 'personalizado';
 
@@ -28,9 +21,9 @@ function formatearFechaCorta(f: string) {
 export default function ReportesPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [gastosAdmin, setGastosAdmin] = useState<{ fecha: string; monto: number }[]>([]);
-  const [nominas, setNominas] = useState<{ fecha: string; total: number }[]>([]);
-  const [movimientosLienzo, setMovimientosLienzo] = useState<{ fecha: string; tipo: string; monto: number }[]>([]);
+  const [gastosAdmin, setGastosAdmin] = useState<GastoAdmin[]>([]);
+  const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
+  const [movimientosLienzo, setMovimientosLienzo] = useState<MovimientoLienzo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('año');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -40,23 +33,23 @@ export default function ReportesPage() {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [v, p, g, n, lienzo] = await Promise.all([
+      const [v, p, g, d, lienzo] = await Promise.all([
         getVentas(),
         getProductos(),
         getGastosAdmin(),
-        getNominas(),
+        getDevoluciones().catch(() => []),
         getMovimientosLienzo().catch(() => []),
       ]);
       setVentas(v);
       setProductos(p);
       setGastosAdmin(g);
-      setNominas(n);
+      setDevoluciones(d);
       setMovimientosLienzo(lienzo);
     } catch {
       setVentas([]);
       setProductos([]);
       setGastosAdmin([]);
-      setNominas([]);
+      setDevoluciones([]);
       setMovimientosLienzo([]);
     } finally {
       setLoading(false);
@@ -87,8 +80,8 @@ export default function ReportesPage() {
         añoPasado.setFullYear(añoPasado.getFullYear() - 1);
         return { inicio: añoPasado, fin: new Date(hoy.getTime() + 24 * 60 * 60 * 1000 - 1) };
       case 'personalizado':
-        const inicio = fechaInicio ? new Date(fechaInicio) : new Date(0);
-        const fin = fechaFin ? new Date(fechaFin + 'T23:59:59') : new Date();
+        const inicio = fechaInicio ? parseFecha(fechaInicio) : new Date(0);
+        const fin = fechaFin ? new Date(fechaFin + 'T23:59:59.999') : new Date();
         return { inicio, fin };
       default:
         return { inicio: new Date(0), fin: new Date() };
@@ -97,74 +90,31 @@ export default function ReportesPage() {
 
   const { inicio: inicioPeriodo, fin: finPeriodo } = obtenerRangoFechas();
 
-  const ventasFiltradas = ventas.filter((v) => {
-    const fechaVenta = new Date(v.fecha);
-    return fechaVenta >= inicioPeriodo && fechaVenta <= finPeriodo;
-  });
+  // Misma fórmula que Dashboard, Gastos Admin y Sueldos (ver lib/finanzas.ts).
+  const finanzas = calcularFinanzas(
+    { ventas, gastos: gastosAdmin, lienzo: movimientosLienzo, devoluciones, productos },
+    { inicio: inicioPeriodo, fin: finPeriodo }
+  );
+  const ventasFiltradas = finanzas.ventasConsideradas;
 
-  const gastosAdminPeriodo = gastosAdmin.filter((g) => {
-    const d = new Date(g.fecha);
-    return d >= inicioPeriodo && d <= finPeriodo;
-  });
-  const totalGastosAdminPeriodo = gastosAdminPeriodo.reduce((s, g) => s + g.monto, 0);
-
-  const nominasPeriodo = nominas.filter((n) => {
-    const d = new Date(n.fecha);
-    return d >= inicioPeriodo && d <= finPeriodo;
-  });
-  const totalNominasPeriodo = nominasPeriodo.reduce((s, n) => s + n.total, 0);
-
-  // Calcular métricas principales (misma fórmula que Gastos Admin y Sueldos)
   const calcularMetricas = () => {
-    // Total de ventas (todas las transacciones del período)
     const totalVentas = ventasFiltradas.length;
+    const ventasConPago = ventasFiltradas.filter((v) => netoCobrado(v) > 0);
+    const { ingresosTotales, costoVentas: costoProductos, gananciaBruta, gananciaNeta } = finanzas;
+    const ventaPromedio = ventasConPago.length > 0 ? finanzas.ingresosVentas / ventasConPago.length : 0;
 
-    // Ingresos totales = ventas pagadas + ingresos Lienzo Charro del período
-    const ventasConPago = ventasFiltradas.filter((v) => (v.pagado || v.total || 0) > 0);
-    const ingresosVentas = ventasConPago.reduce((sum, v) => sum + (v.pagado || v.total || 0), 0);
-    const ingresosLienzoPeriodo = movimientosLienzo
-      .filter((m) => m.tipo === 'ingreso')
-      .filter((m) => {
-        const d = new Date(m.fecha);
-        return d >= inicioPeriodo && d <= finPeriodo;
-      })
-      .reduce((s, m) => s + m.monto, 0);
-    const ingresosTotales = ingresosVentas + ingresosLienzoPeriodo;
-    
-    // Costo de productos vendidos: usar costo guardado en ítem (al registrar venta) o costo actual del producto
-    const costoProductos = ventasConPago.reduce((sum, venta) => {
-      const porcentajePagado = venta.total > 0 ? (venta.pagado || venta.total) / venta.total : 1;
-      return sum + venta.items.reduce((itemSum, item) => {
-        const costoUnitario = item.costo != null ? item.costo : (productos.find((p) => p.id === item.id)?.costo ?? 0);
-        return itemSum + (costoUnitario * item.cantidad * porcentajePagado);
-      }, 0);
-    }, 0);
-
-    const gananciaBruta = ingresosTotales - costoProductos;
-    // Ingresos − Costo ventas − Gastos Admin − Nóminas (igual que en Gastos Admin y Sueldos)
-    const gananciaNeta = gananciaBruta - totalGastosAdminPeriodo - totalNominasPeriodo;
-    const ventaPromedio = ventasConPago.length > 0 ? ingresosTotales / ventasConPago.length : 0;
-
-    // Calcular productos vendidos (solo de ventas con pago)
-    const productosVendidos = ventasConPago.reduce((sum, v) => {
-      return sum + v.items.reduce((itemSum, item) => itemSum + item.cantidad, 0);
-    }, 0);
-
-    // Calcular margen de ganancia
+    const productosVendidos = ventasFiltradas.reduce((sum, v) => sum + v.items.reduce((itemSum, item) => itemSum + item.cantidad, 0), 0);
     const margenGanancia = ingresosTotales > 0 ? (gananciaBruta / ingresosTotales) * 100 : 0;
-
-    // Costo promedio por unidad vendida
     const costoPromedio = productosVendidos > 0 ? costoProductos / productosVendidos : 0;
-
-    // Ganancia por venta
     const gananciaPorVenta = ventasConPago.length > 0 ? gananciaBruta / ventasConPago.length : 0;
 
     return {
       totalVentas,
       ingresosTotales,
       costoProductos,
-      totalGastosAdminPeriodo,
-      totalNominasPeriodo,
+      // Las nóminas ya están dentro de Gastos Admin (categoría Sueldos); se muestran solo como referencia.
+      totalGastosAdminPeriodo: finanzas.gastosAdmin,
+      totalNominasPeriodo: finanzas.gastosSueldos,
       gananciaBruta,
       gananciaNeta,
       ventaPromedio,
@@ -188,9 +138,9 @@ export default function ReportesPage() {
     return `${formato(inicio)} - ${formato(fin)}`;
   };
 
-  const ventasConPago = ventasFiltradas.filter((v) => (v.pagado || v.total || 0) > 0);
+  const ventasConPago = ventasFiltradas.filter((v) => netoCobrado(v) > 0);
   const ventasRecientesPeriodo = [...ventasFiltradas]
-    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+    .sort((a, b) => parseFecha(b.fecha).getTime() - parseFecha(a.fecha).getTime())
     .slice(0, 10);
 
   const productosMasVendidosPeriodo = (() => {
@@ -226,7 +176,7 @@ export default function ReportesPage() {
       `Ingresos totales,$${formatearMoneda(metricas.ingresosTotales)}`,
       `Costo de productos,$${formatearMoneda(metricas.costoProductos)}`,
       `Gastos administrativos (período),$${formatearMoneda(metricas.totalGastosAdminPeriodo)}`,
-      `Nóminas pagadas (período),$${formatearMoneda(metricas.totalNominasPeriodo)}`,
+      `  de los cuales nóminas (Sueldos),$${formatearMoneda(metricas.totalNominasPeriodo)}`,
       `Ganancia bruta,$${formatearMoneda(metricas.gananciaBruta)}`,
       `Ganancia neta,$${formatearMoneda(metricas.gananciaNeta)}`,
       `Venta promedio,$${formatearMoneda(metricas.ventaPromedio)}`,
@@ -243,13 +193,13 @@ export default function ReportesPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte-ventas-${inicio.toISOString().slice(0, 10)}-${fin.toISOString().slice(0, 10)}.csv`;
+    a.download = `reporte-ventas-${hoyISO(inicio)}-${hoyISO(fin)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setExportando(false);
   };
 
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = hoyISO();
   const hayDatos = ventasFiltradas.length > 0;
 
   return (
@@ -267,7 +217,7 @@ export default function ReportesPage() {
             <p className="text-slate-400 text-sm mt-0.5">Análisis financiero y ventas · Período: {formatearRangoFechas()}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => cargarDatos()}
             disabled={loading}
@@ -486,7 +436,7 @@ export default function ReportesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
               </div>
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Ingresos − Costo ventas − Gastos Admin − Nóminas</span>
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Ingresos − Costo ventas − Gastos Admin (incluye nóminas)</span>
             </div>
             <p className={`text-3xl font-bold tabular-nums ${metricas.gananciaNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               ${formatearMoneda(metricas.gananciaNeta)}

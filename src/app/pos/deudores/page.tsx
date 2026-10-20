@@ -16,6 +16,11 @@ type Venta = {
   items: { nombre: string; cantidad: number; precio: number }[];
 };
 
+/** Ventas a crédito cuyo cliente no existe o no se registró (ventas antiguas). */
+function clienteSinRegistro(venta: Venta): Cliente {
+  return { id: venta.clienteId ?? 0, nombre: venta.cliente ? `${venta.cliente} (sin registro)` : 'Ventas a crédito sin cliente' };
+}
+
 type Deudor = {
   cliente: Cliente;
   totalAdeudado: number;
@@ -55,10 +60,10 @@ export default function DeudoresPage() {
     const deudoresMap = new Map<number, { cliente: Cliente; ventasPendientes: Venta[] }>();
 
     ventas
-      .filter((v) => v.estado === 'pendiente' && v.pendiente && v.pendiente > 0 && v.clienteId)
+      .filter((v) => v.estado === 'pendiente' && v.pendiente && v.pendiente > 0)
       .forEach((venta) => {
-        const clienteId = venta.clienteId!;
-        const cliente = clientes.find((c) => c.id === clienteId);
+        const clienteId = venta.clienteId ?? 0;
+        const cliente = clientes.find((c) => c.id === clienteId) ?? clienteSinRegistro(venta);
         if (!cliente) return;
 
         if (!deudoresMap.has(clienteId)) {
@@ -134,7 +139,7 @@ export default function DeudoresPage() {
       }
       cerrarAbono();
     } catch (error) {
-      alert('Error al registrar el abono');
+      alert(error instanceof Error ? error.message : 'Error al registrar el abono');
       console.error(error);
     }
   };
@@ -143,10 +148,10 @@ export default function DeudoresPage() {
     const deudoresMap = new Map<number, { cliente: Cliente; ventasPendientes: Venta[] }>();
 
     ventasData
-      .filter((v) => v.estado === 'pendiente' && v.pendiente && v.pendiente > 0 && v.clienteId)
+      .filter((v) => v.estado === 'pendiente' && v.pendiente && v.pendiente > 0)
       .forEach((venta) => {
-        const clienteId = venta.clienteId!;
-        const cliente = clientesData.find((c) => c.id === clienteId);
+        const clienteId = venta.clienteId ?? 0;
+        const cliente = clientesData.find((c) => c.id === clienteId) ?? clienteSinRegistro(venta);
         if (!cliente) return;
 
         if (!deudoresMap.has(clienteId)) {
@@ -179,7 +184,7 @@ export default function DeudoresPage() {
       <div className="flex flex-col h-full text-white">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-white mb-1">Gestión de Deudores</h1>
               <p className="text-slate-400 text-sm">Selecciona un deudor para ver su historial de deudas</p>

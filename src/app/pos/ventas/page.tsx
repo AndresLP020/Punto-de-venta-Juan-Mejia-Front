@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, putVenta, type Devolucion, type PerdidaItem, type Producto, type VentaItemEdit } from '@/lib/api';
-import { formatearMoneda, formatearCantidad } from '@/lib/utils';
+import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, putVenta, cancelarVenta, type Devolucion, type PerdidaItem, type Producto, type VentaItemEdit, type MovimientoVenta } from '@/lib/api';
+import { formatearMoneda, formatearCantidad, escapeHtml, hoyISO, mensajeError } from '@/lib/utils';
+import { netoCobrado } from '@/lib/finanzas';
 
 type Venta = {
   id: number;
@@ -13,7 +14,13 @@ type Venta = {
   pendiente?: number;
   items: { id?: number; nombre: string; cantidad: number; precio: number; costo?: number }[];
   cliente?: string;
+  estado?: string;
+  abonos?: MovimientoVenta[];
+  reembolsos?: MovimientoVenta[];
 };
+
+/** Lo que el cliente ha pagado y no se le ha devuelto. */
+const netoVenta = (v: Venta) => netoCobrado({ ...v, items: [] });
 
 type FiltroFecha = 'todos' | 'hoy' | 'ayer' | 'semana' | 'mes' | 'personalizado';
 
@@ -178,29 +185,63 @@ function VentasPageContent() {
     });
   };
 
+  const ventasActivas = ventasFiltradas.filter((v) => v.estado !== 'cancelada');
   const estadisticas = {
-    total: ventasFiltradas.reduce((sum, v) => sum + (v.total || 0), 0),
-    cantidad: ventasFiltradas.length,
-    promedio: ventasFiltradas.length > 0 ? ventasFiltradas.reduce((sum, v) => sum + (v.total || 0), 0) / ventasFiltradas.length : 0,
-    itemsTotal: ventasFiltradas.reduce((sum, v) => sum + (v.items?.reduce((s, i) => s + i.cantidad, 0) || 0), 0),
+    total: ventasActivas.reduce((sum, v) => sum + (v.total || 0), 0),
+    cantidad: ventasActivas.length,
+    promedio: ventasActivas.length > 0 ? ventasActivas.reduce((sum, v) => sum + (v.total || 0), 0) / ventasActivas.length : 0,
+    itemsTotal: ventasActivas.reduce((sum, v) => sum + (v.items?.reduce((s, i) => s + i.cantidad, 0) || 0), 0),
   };
 
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = hoyISO();
+
+  /** Ítems del modal de devolución: los del ticket elegido o, sin ticket, todos los productos. */
+  const itemsParaDevolucion = (ventaId: number | null, listado: Producto[]): ItemDevolucionEdit[] => {
+    const venta = ventaId != null ? ventas.find((v) => v.id === ventaId) : null;
+    if (venta) {
+      const porProducto = new Map<number, ItemDevolucionEdit>();
+      for (const it of venta.items || []) {
+        if (it.id == null) continue;
+        const prev = porProducto.get(it.id);
+        if (prev) prev.cantidadVendida += it.cantidad;
+        else porProducto.set(it.id, { productoId: it.id, nombre: it.nombre, cantidadVendida: it.cantidad, cantidadDevolver: 0, precio: it.precio, tipo: 'revendible' });
+      }
+      return Array.from(porProducto.values());
+    }
+    return listado.map((p) => ({
+      productoId: p.id,
+      nombre: p.nombre,
+      cantidadVendida: 0,
+      cantidadDevolver: 0,
+      precio: typeof p.precio === 'number' ? p.precio : 0,
+      tipo: 'revendible' as const,
+    }));
+  };
+
+  const cambiarVentaDevolucion = (ventaId: number | null) => {
+    setModalDevolucion({ ventaId, items: itemsParaDevolucion(ventaId, productos as Producto[]) });
+  };
+
+  const cancelarVentaHistorial = async (venta: Venta) => {
+    const neto = netoVenta(venta);
+    const mensaje =
+      `¿Cancelar la venta #${venta.id}?\n\nLos productos regresarán al inventario` +
+      (neto > 0 ? ` y se registrará la devolución de $${formatearMoneda(neto)} al cliente.` : '.') +
+      '\nEsta acción no se puede deshacer.';
+    if (!window.confirm(mensaje)) return;
+    try {
+      await cancelarVenta(venta.id);
+      cargarVentas();
+    } catch (e) {
+      alert(mensajeError(e, 'Error al cancelar la venta'));
+    }
+  };
 
   const abrirModalDevolucion = async () => {
     try {
-      const listado = await getProductos();
+      const listado: Producto[] = await getProductos();
       setProductos(listado);
-      const items: ItemDevolucionEdit[] = listado.map((p: Producto) => ({
-        productoId: p.id,
-        nombre: p.nombre,
-        cantidadVendida: typeof p.stock === 'number' ? p.stock : 0,
-        cantidadDevolver: 0,
-        precio: typeof p.precio === 'number' ? p.precio : 0,
-        tipo: 'revendible' as const,
-      }));
-      const ventaId = ventas.length > 0 ? ventas[0].id : null;
-      setModalDevolucion({ ventaId, items });
+      setModalDevolucion({ ventaId: null, items: itemsParaDevolucion(null, listado) });
     } catch {
       alert('Error al cargar productos');
     }
@@ -232,7 +273,7 @@ function VentasPageContent() {
       getPerdidas().then(setPerdidas).catch(() => {});
       cargarVentas();
     } catch (e) {
-      alert((e as Error).message);
+      alert(mensajeError(e));
     } finally {
       setEnviandoDevolucion(false);
     }
@@ -378,13 +419,13 @@ function VentasPageContent() {
             <p><strong>Juan Mejía</strong></p>
             <p><strong>Ticket corregido #${venta.id}</strong></p>
             <p class="sub">${new Date().toLocaleString('es-MX')}</p>
-            ${venta.cliente ? `<div class="cliente"><strong>Cliente:</strong> ${venta.cliente}</div>` : ''}
+            ${venta.cliente ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(venta.cliente)}</div>` : ''}
           </div>
           
           <div style="margin-bottom: 15px;"><strong>PRODUCTOS (actualizados):</strong></div>
           ${items.map((i) => `
             <div class="item">
-              <div class="item-name">${i.nombre}</div>
+              <div class="item-name">${escapeHtml(i.nombre)}</div>
               <div class="item-detail">${i.cantidad} × $${formatearMoneda(i.precio)} = $${formatearMoneda(i.precio * i.cantidad)}</div>
             </div>
           `).join('')}
@@ -419,7 +460,7 @@ function VentasPageContent() {
             <div class="modif">
               <h4>Modificaciones realizadas:</h4>
               <ul>
-                ${modificaciones.map((m) => `<li>${m.replace('• ', '')}</li>`).join('')}
+                ${modificaciones.map((m) => `<li>${escapeHtml(m.replace('• ', ''))}</li>`).join('')}
               </ul>
             </div>
           ` : ''}
@@ -447,7 +488,7 @@ function VentasPageContent() {
     setEnviandoEditar(true);
     try {
       await putVenta(venta.id, { items: itemsNuevos });
-      const pagado = venta.pagado ?? 0;
+      const pagado = netoVenta(venta);
       const modificaciones = calcularModificaciones(venta.items, itemsNuevos);
       const ventaGuardada = { ...venta, items: itemsNuevos };
       setModalEditarVenta(null);
@@ -457,7 +498,7 @@ function VentasPageContent() {
         imprimirTicketEditado(ventaGuardada, itemsNuevos, pagado, modificaciones);
       }
     } catch (e) {
-      alert((e as Error).message);
+      alert(mensajeError(e));
     } finally {
       setEnviandoEditar(false);
     }
@@ -590,22 +631,22 @@ function VentasPageContent() {
 
       {/* Estadísticas */}
       <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/30">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <p className="text-slate-400 text-sm mb-1">Total de Ventas</p>
-            <p className="text-2xl font-bold text-white">{formatearCantidad(estadisticas.cantidad)}</p>
+            <p className="text-lg sm:text-2xl font-bold break-words text-white">{formatearCantidad(estadisticas.cantidad)}</p>
           </div>
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <p className="text-slate-400 text-sm mb-1">Monto Total</p>
-            <p className="text-2xl font-bold text-green-400">${formatearMoneda(estadisticas.total)}</p>
+            <p className="text-lg sm:text-2xl font-bold break-words text-green-400">${formatearMoneda(estadisticas.total)}</p>
           </div>
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <p className="text-slate-400 text-sm mb-1">Promedio por Venta</p>
-            <p className="text-2xl font-bold text-white">${formatearMoneda(estadisticas.promedio)}</p>
+            <p className="text-lg sm:text-2xl font-bold break-words text-white">${formatearMoneda(estadisticas.promedio)}</p>
           </div>
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <p className="text-slate-400 text-sm mb-1">Productos Vendidos</p>
-            <p className="text-2xl font-bold text-white">{formatearCantidad(estadisticas.itemsTotal)}</p>
+            <p className="text-lg sm:text-2xl font-bold break-words text-white">{formatearCantidad(estadisticas.itemsTotal)}</p>
           </div>
         </div>
       </div>
@@ -637,10 +678,18 @@ function VentasPageContent() {
                     className="p-4 cursor-pointer"
                     onClick={() => setVentaExpandida(estaExpandida ? null : venta.id)}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-lg font-bold text-white">Venta #{venta.id}</span>
+                    <div className="flex items-start justify-between gap-2 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                          <span className={`text-lg font-bold whitespace-nowrap ${venta.estado === 'cancelada' ? 'text-slate-500 line-through' : 'text-white'}`}>Venta #{venta.id}</span>
+                          {venta.estado === 'cancelada' && (
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-red-500/20 text-red-300">Cancelada</span>
+                          )}
+                          {venta.estado === 'pendiente' && (
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+                              Pendiente ${formatearMoneda(venta.pendiente ?? 0)}
+                            </span>
+                          )}
                           <span className="px-2 py-1 rounded text-xs font-medium bg-slate-700 text-slate-300">
                             {itemsCount} {itemsCount === 1 ? 'producto' : 'productos'}
                           </span>
@@ -663,7 +712,7 @@ function VentasPageContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-green-400 mb-1">${formatearMoneda(venta.total ?? 0)}</p>
+                        <p className="text-lg sm:text-2xl font-bold text-green-400 mb-1 whitespace-nowrap">${formatearMoneda(venta.total ?? 0)}</p>
                         <p className="text-xs text-slate-400">{formatearFechaCorta(venta.fecha)}</p>
                       </div>
                       <button className="p-1 text-slate-400 hover:text-white transition">
@@ -684,6 +733,15 @@ function VentasPageContent() {
                     <div className="border-t border-slate-700 bg-slate-900/50 p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-slate-300">Productos vendidos:</h4>
+                        {venta.estado !== 'cancelada' && (
+                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); cancelarVentaHistorial(venta); }}
+                          className="px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-sm font-medium transition"
+                        >
+                          Cancelar venta
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); abrirEditarTicket(venta); }}
@@ -694,6 +752,8 @@ function VentasPageContent() {
                           </svg>
                           Editar ticket
                         </button>
+                        </div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         {venta.items?.map((item, idx) => (
@@ -749,7 +809,10 @@ function VentasPageContent() {
                     <div className="flex justify-between items-start">
                       <div>
                         <span className="font-medium text-white">Devolución #{d.id}</span>
-                        <span className="text-slate-400 text-sm ml-2">Venta #{d.ventaId}</span>
+                        <span className="text-slate-400 text-sm ml-2">{d.ventaId ? `Venta #${d.ventaId}` : 'Sin ticket'}</span>
+                        {(d.reembolso ?? 0) > 0 && (
+                          <span className="text-blue-300 text-sm ml-2">Reembolso: ${formatearMoneda(d.reembolso ?? 0)}</span>
+                        )}
                         <p className="text-slate-500 text-sm mt-1">{formatearFecha(d.fecha)}</p>
                       </div>
                     </div>
@@ -825,12 +888,12 @@ function VentasPageContent() {
                 value={modalDevolucion.ventaId ?? ''}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setModalDevolucion((prev) => (prev ? { ...prev, ventaId: val === '' ? null : Number(val) } : null));
+                  cambiarVentaDevolucion(val === '' ? null : Number(val));
                 }}
                 className="w-full rounded-xl bg-slate-700 border border-slate-600 text-white px-4 py-2"
               >
                 <option value="">Ninguna</option>
-                {ventas.map((v) => (
+                {ventas.filter((v) => v.estado !== 'cancelada').map((v) => (
                   <option key={v.id} value={v.id}>
                     Venta #{v.id} — {formatearFechaCorta(v.fecha)} — ${formatearMoneda(v.total ?? 0)}
                   </option>
@@ -838,7 +901,12 @@ function VentasPageContent() {
               </select>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              <p className="text-slate-400 text-sm mb-3">Todos los productos. Indica cantidad a devolver y si se puede revender o es pérdida.</p>
+              <p className="text-slate-400 text-sm mb-3">
+                {modalDevolucion.ventaId != null
+                  ? 'Productos del ticket seleccionado. El ticket se ajustará y, si ya estaba pagado, se registrará el reembolso al cliente.'
+                  : 'Sin ticket de referencia: se muestran todos los productos y se registra el reembolso al precio actual.'}{' '}
+                Indica la cantidad a devolver y si se puede revender o es pérdida.
+              </p>
               <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
                 {modalDevolucion.items.map((it, idx) => (
                   <div key={it.productoId} className="p-3 rounded-xl bg-slate-700/50 border border-slate-600 space-y-2">
@@ -849,11 +917,20 @@ function VentasPageContent() {
                         <input
                           type="number"
                           min={0}
+                          max={modalDevolucion.ventaId != null ? it.cantidadVendida : undefined}
+                          step="any"
                           value={it.cantidadDevolver || ''}
-                          onChange={(e) => actualizarItemDevolucion(idx, { cantidadDevolver: Math.max(0, Number(e.target.value) || 0) })}
+                          onChange={(e) => {
+                            let cant = Math.max(0, Number(e.target.value) || 0);
+                            if (modalDevolucion.ventaId != null) cant = Math.min(cant, it.cantidadVendida);
+                            actualizarItemDevolucion(idx, { cantidadDevolver: cant });
+                          }}
                           className="w-20 rounded-lg bg-slate-700 border border-slate-600 text-white px-2 py-1 text-sm"
                         />
-                        <span className="text-slate-500 text-sm">Stock actual: {it.cantidadVendida}</span>
+                        {modalDevolucion.ventaId != null && (
+                          <span className="text-slate-500 text-sm">Vendidos en el ticket: {it.cantidadVendida}</span>
+                        )}
+                        <span className="text-slate-500 text-sm">${formatearMoneda(it.precio)} c/u</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-slate-400 text-sm">Tipo:</span>
@@ -909,7 +986,7 @@ function VentasPageContent() {
               <div className="rounded-xl bg-slate-700/50 border border-slate-600 p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Pagado anteriormente por el cliente:</span>
-                  <span className="text-emerald-400 font-semibold">${formatearMoneda(modalEditarVenta.venta.pagado ?? 0)}</span>
+                  <span className="text-emerald-400 font-semibold">${formatearMoneda(netoVenta(modalEditarVenta.venta))}</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-slate-600">
                   <span className="text-slate-400">Nuevo total del ticket:</span>
@@ -917,7 +994,7 @@ function VentasPageContent() {
                 </div>
                 {(() => {
                   const nuevoTotal = modalEditarVenta.items.reduce((s, i) => s + i.precio * i.cantidad, 0);
-                  const pagado = modalEditarVenta.venta.pagado ?? 0;
+                  const pagado = netoVenta(modalEditarVenta.venta);
                   const seLeDebeAlCliente = Math.max(0, pagado - nuevoTotal);
                   const clienteDebe = Math.max(0, nuevoTotal - pagado);
                   if (seLeDebeAlCliente > 0) {
@@ -965,9 +1042,10 @@ function VentasPageContent() {
                       <label className="text-slate-400 text-xs">Cant.</label>
                       <input
                         type="number"
-                        min={1}
+                        min={0.001}
+                        step="any"
                         value={item.cantidad}
-                        onChange={(e) => actualizarItemEditar(idx, { cantidad: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+                        onChange={(e) => actualizarItemEditar(idx, { cantidad: Math.max(0.001, Math.round((Number(e.target.value) || 0) * 1000) / 1000) })}
                         className="w-16 rounded-lg bg-slate-700 border border-slate-600 text-white px-2 py-1.5 text-sm"
                       />
                     </div>

@@ -105,3 +105,270 @@ body {
 .theme-light .pos-layout button:hover {
   color: inherit;
 }
+
+/* ==========================================================================
+   Login: fondo animado, texto arcoíris, borde animado, botón con brillo
+   ========================================================================== */
+.login-bg {
+  background:
+    radial-gradient(ellipse at top left, rgb(88 28 135 / 0.55), transparent 55%),
+    radial-gradient(ellipse at bottom right, rgb(8 145 178 / 0.35), transparent 55%),
+    #070514;
+}
+.login-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+.blob {
+  animation: blob-flotar 18s ease-in-out infinite;
+}
+.blob-delay-1 { animation-delay: -4s; }
+.blob-delay-2 { animation-delay: -9s; }
+.blob-delay-3 { animation-delay: -13s; }
+@keyframes blob-flotar {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -50px) scale(1.12); }
+  66% { transform: translate(-30px, 30px) scale(0.92); }
+}
+
+.texto-arcoiris {
+  background: linear-gradient(90deg, #f0abfc, #c084fc, #67e8f9, #fcd34d, #f0abfc);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: degradado-mover 8s linear infinite;
+}
+.borde-animado {
+  background: linear-gradient(120deg, #d946ef, #8b5cf6, #22d3ee, #f59e0b, #d946ef);
+  background-size: 300% 300%;
+  animation: degradado-mover 6s linear infinite;
+}
+.boton-arcoiris {
+  background: linear-gradient(90deg, #d946ef, #8b5cf6, #06b6d4, #d946ef);
+  background-size: 300% 100%;
+  animation: degradado-mover 5s linear infinite;
+}
+.boton-arcoiris .brillo {
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.8s ease;
+}
+.boton-arcoiris:hover .brillo {
+  transform: translateX(120%);
+}
+@keyframes degradado-mover {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.sacudir {
+  animation: sacudir 0.45s ease-in-out;
+}
+@keyframes sacudir {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* ==========================================================================
+   Tema vibrante del sistema (modo oscuro)
+   ========================================================================== */
+.theme-dark .pos-layout {
+  background:
+    radial-gradient(circle at 15% 0%, rgb(168 85 247 / 0.16), transparent 40%),
+    radial-gradient(circle at 100% 30%, rgb(34 211 238 / 0.12), transparent 40%),
+    radial-gradient(circle at 40% 100%, rgb(236 72 153 / 0.12), transparent 45%),
+    #080616 !important;
+}
+.theme-dark .pos-layout main,
+.theme-dark .pos-layout .pos-main-inner {
+  background: transparent !important;
+}
+
+/* Títulos de cada apartado con degradado */
+.theme-dark .pos-main-inner h1 {
+  background: linear-gradient(90deg, #f0abfc 0%, #c4b5fd 40%, #67e8f9 80%, #6ee7b7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+/* Encabezados fijos de las páginas: vidrio con tinte violeta */
+.theme-dark .pos-main-inner header.bg-slate-900\/90 {
+  background: rgb(14 10 36 / 0.75) !important;
+  border-color: rgb(167 139 250 / 0.18) !important;
+}
+
+/* Tarjetas: fondo con degradado sutil, sombra de color y elevación al pasar el mouse */
+.theme-dark .pos-main-inner .rounded-2xl.bg-slate-800\/80,
+.theme-dark .pos-main-inner .rounded-xl.bg-slate-800\/80,
+.theme-dark .pos-main-inner .rounded-xl.bg-slate-800,
+.theme-dark .pos-main-inner .rounded-lg.bg-slate-800\/50 {
+  background: linear-gradient(150deg, rgb(91 33 182 / 0.28), rgb(30 27 75 / 0.55) 45%, rgb(8 20 40 / 0.85)) !important;
+  box-shadow: 0 10px 30px -15px rgb(139 92 246 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.theme-dark .pos-main-inner .rounded-2xl.bg-slate-800\/80:hover {
+  box-shadow: 0 16px 40px -15px rgb(217 70 239 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+/* Botones principales con degradados vivos */
+.theme-dark .pos-main-inner .bg-green-500,
+.theme-dark .pos-main-inner .bg-emerald-500,
+.theme-dark .pos-main-inner .bg-emerald-600 {
+  background-image: linear-gradient(135deg, #10b981, #06b6d4) !important;
+  box-shadow: 0 8px 22px -10px rgb(16 185 129 / 0.9);
+}
+.theme-dark .pos-main-inner .bg-blue-500,
+.theme-dark .pos-main-inner .bg-blue-600 {
+  background-image: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+  box-shadow: 0 8px 22px -10px rgb(99 102 241 / 0.9);
+}
+.theme-dark .pos-main-inner .bg-amber-500,
+.theme-dark .pos-main-inner .bg-amber-600 {
+  background-image: linear-gradient(135deg, #f59e0b, #f43f5e) !important;
+  box-shadow: 0 8px 22px -10px rgb(244 63 94 / 0.8);
+}
+.theme-dark .pos-main-inner button.bg-red-600\/80,
+.theme-dark .pos-main-inner button.bg-red-500 {
+  background-image: linear-gradient(135deg, #f43f5e, #e11d48) !important;
+}
+.theme-dark .pos-main-inner button[class*='bg-green-'],
+.theme-dark .pos-main-inner button[class*='bg-emerald-'],
+.theme-dark .pos-main-inner button[class*='bg-blue-'],
+.theme-dark .pos-main-inner button[class*='bg-amber-'] {
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.theme-dark .pos-main-inner button[class*='bg-green-']:not(:disabled):hover,
+.theme-dark .pos-main-inner button[class*='bg-emerald-']:not(:disabled):hover,
+.theme-dark .pos-main-inner button[class*='bg-blue-']:not(:disabled):hover,
+.theme-dark .pos-main-inner button[class*='bg-amber-']:not(:disabled):hover {
+  filter: brightness(1.12) saturate(1.1);
+  transform: translateY(-1px);
+}
+
+/* Montos y cifras destacadas con más brillo */
+.theme-dark .pos-main-inner .text-green-400,
+.theme-dark .pos-main-inner .text-emerald-400 {
+  color: #34f5b4 !important;
+  text-shadow: 0 0 18px rgb(52 245 180 / 0.25);
+}
+.theme-dark .pos-main-inner .text-violet-400 {
+  color: #c4b5fd !important;
+  text-shadow: 0 0 18px rgb(167 139 250 / 0.3);
+}
+
+/* Campos de formulario: foco con color */
+.theme-dark .pos-main-inner input:focus,
+.theme-dark .pos-main-inner select:focus,
+.theme-dark .pos-main-inner textarea:focus {
+  border-color: rgb(217 70 239 / 0.6) !important;
+  box-shadow: 0 0 0 3px rgb(217 70 239 / 0.18);
+}
+
+/* Tarjetas de productos en el punto de venta */
+.theme-dark .pos-main-inner button.rounded-lg.bg-slate-800 {
+  background: linear-gradient(160deg, rgb(76 29 149 / 0.35), rgb(15 23 42 / 0.9)) !important;
+  border-color: rgb(167 139 250 / 0.22) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.theme-dark .pos-main-inner button.rounded-lg.bg-slate-800:not(:disabled):hover {
+  border-color: rgb(232 121 249 / 0.7) !important;
+  box-shadow: 0 12px 30px -12px rgb(217 70 239 / 0.6);
+  transform: translateY(-2px);
+}
+
+/* Destello diagonal en tarjetas de indicadores */
+.kpi-vivo::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 60%;
+  height: 180%;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.28), transparent 65%);
+  pointer-events: none;
+}
+
+/* Modo claro: el texto sobre degradados de color sigue siendo blanco */
+.theme-light .pos-layout .kpi-vivo .text-white,
+.theme-light .pos-layout .bg-gradient-to-r.text-white,
+.theme-light .pos-layout .bg-gradient-to-br .text-white {
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   Celulares (< 768px)
+   ========================================================================== */
+@media (max-width: 767px) {
+  /* El contenedor ya tiene margen: se reduce el relleno lateral de cada sección para ganar ancho */
+  .pos-layout .pos-main-inner {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .pos-main-inner .px-6 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .pos-main-inner .p-6 {
+    padding: 1rem;
+  }
+  .pos-main-inner .p-5 {
+    padding: 1rem;
+  }
+  /* Los encabezados de cada apartado no se quedan fijos: en pantallas chicas roban espacio */
+  .pos-main-inner header.sticky {
+    position: static;
+  }
+  /* Los modales nunca más altos que la pantalla */
+  .pos-layout .fixed.inset-0 > div {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+  /* Tablas con acciones: la última columna queda fija a la derecha al deslizar */
+  .tabla-acciones th:last-child,
+  .tabla-acciones td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: rgb(19 14 44 / 0.97);
+    box-shadow: -10px 0 14px -10px rgb(0 0 0 / 0.8);
+  }
+  .theme-light .tabla-acciones th:last-child,
+  .theme-light .tabla-acciones td:last-child {
+    background: rgb(241 245 249 / 0.97);
+  }
+  /* Evita que iOS haga zoom al enfocar campos (necesita 16px) */
+  .pos-layout input,
+  .pos-layout select,
+  .pos-layout textarea {
+    font-size: 16px;
+  }
+}
+
+/* Pantallas táctiles: área mínima para tocar en botones de solo icono */
+@media (pointer: coarse), (max-width: 767px) {
+  .pos-main-inner button.p-1,
+  .pos-main-inner button.p-1\.5,
+  .pos-main-inner button.p-2 {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .texto-arcoiris,
+  .borde-animado,
+  .boton-arcoiris,
+  .sacudir {
+    animation: none !important;
+  }
+}
