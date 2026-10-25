@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
-import { escapeHtml } from '@/lib/utils';
+import { imprimirTicket as abrirTicket } from '@/lib/ticketPrint';
 
 type CarritoItem = {
   producto: Producto;
@@ -271,99 +271,18 @@ export default function POSPage() {
   };
 
   const imprimirTicket = () => {
-    const ventana = window.open('', '_blank');
-    if (!ventana) return;
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
-    const pendienteTicket = Math.max(0, totalCarrito - montoPago);
-    const cambioTicket = montoPago > totalCarrito ? montoPago - totalCarrito : 0;
-
-    const contenido = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Ticket de Venta</title>
-          <style>
-            body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; font-size: 12px; }
-            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
-            .header h2 { margin: 0 0 5px 0; font-size: 18px; }
-            .header p { margin: 3px 0; font-size: 11px; }
-            .cliente { margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 3px; }
-            .item { margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dotted #ccc; }
-            .item-name { font-weight: bold; margin-bottom: 3px; }
-            .item-detail { font-size: 11px; color: #555; }
-            .totals { border-top: 2px dashed #000; padding-top: 10px; margin-top: 15px; }
-            .total-row { display: flex; justify-content: space-between; margin: 5px 0; }
-            .total-label { font-weight: bold; }
-            .total-amount { font-weight: bold; }
-            .pago { color: #059669; }
-            .pendiente { color: #d97706; font-weight: bold; font-size: 14px; }
-            .cambio { color: #059669; }
-            .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; font-size: 11px; }
-            .advertencia { background: #fef3c7; padding: 8px; margin-top: 10px; border-radius: 3px; font-size: 11px; color: #92400e; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>Punto de Venta</h2>
-            <p><strong>Juan Mejía</strong></p>
-            <p>${new Date().toLocaleString('es-MX')}</p>
-            ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(clienteSeleccionado.nombre)}</div>` : ''}
-          </div>
-          
-          <div style="margin-bottom: 15px;">
-            <strong>PRODUCTOS:</strong>
-          </div>
-          
-          ${carrito.map((i) => `
-            <div class="item">
-              <div class="item-name">${escapeHtml(i.producto.nombre)}</div>
-              <div class="item-detail">
-                ${i.producto.esGranel ? i.cantidad.toFixed(2) + ' kg' : 'Cantidad: ' + i.cantidad} × $${formatearMoneda(i.precioVenta)} = $${formatearMoneda(i.precioVenta * i.cantidad)}
-              </div>
-            </div>
-          `).join('')}
-          
-          <div class="totals">
-            <div class="total-row">
-              <span class="total-label">TOTAL:</span>
-              <span class="total-amount">$${formatearMoneda(totalCarrito)}</span>
-            </div>
-            <div class="total-row">
-              <span>Pagado:</span>
-              <span class="pago">$${formatearMoneda(montoPago)}</span>
-            </div>
-            ${cambioTicket > 0 ? `
-              <div class="total-row">
-                <span>Cambio:</span>
-                <span class="cambio">$${formatearMoneda(cambioTicket)}</span>
-              </div>
-            ` : ''}
-            ${pendienteTicket > 0 ? `
-              <div class="total-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #000;">
-                <span class="pendiente">PENDIENTE:</span>
-                <span class="pendiente">$${formatearMoneda(pendienteTicket)}</span>
-              </div>
-            ` : ''}
-          </div>
-          
-          ${pendienteTicket > 0 ? `
-            <div class="advertencia">
-              <strong>⚠ VENTA CON CRÉDITO</strong><br>
-              Monto pendiente de pago: $${formatearMoneda(pendienteTicket)}
-            </div>
-          ` : ''}
-          
-          <div class="footer">
-            <p><strong>${pendienteTicket > 0 ? 'Venta con crédito pendiente' : 'Gracias por su compra'}</strong></p>
-            <p style="margin-top: 5px;">Conserve este ticket</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ventana.print();
+    abrirTicket({
+      cliente: clienteSeleccionado?.nombre,
+      items: carrito.map((i) => ({
+        nombre: i.producto.nombre,
+        cantidad: i.cantidad,
+        precio: i.precioVenta,
+        esGranel: i.producto.esGranel,
+      })),
+      total: totalCarrito,
+      pagado: montoPago,
+    });
   };
 
   const irAlCarrito = () => document.getElementById('carrito-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

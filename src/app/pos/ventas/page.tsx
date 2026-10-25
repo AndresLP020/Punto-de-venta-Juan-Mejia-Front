@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, putVenta, cancelarVenta, type Devolucion, type PerdidaItem, type Producto, type VentaItemEdit, type MovimientoVenta } from '@/lib/api';
-import { formatearMoneda, formatearCantidad, escapeHtml, hoyISO, mensajeError } from '@/lib/utils';
+import { formatearMoneda, formatearCantidad, hoyISO, mensajeError } from '@/lib/utils';
+import { imprimirTicket } from '@/lib/ticketPrint';
 import { netoCobrado } from '@/lib/finanzas';
 
 type Venta = {
@@ -380,101 +381,20 @@ function VentasPageContent() {
     pagado: number,
     modificaciones: string[]
   ) => {
-    const ventana = window.open('', '_blank');
-    if (!ventana) return;
     const nuevoTotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    const pendiente = Math.max(0, nuevoTotal - pagado);
-    const seLeDebeAlCliente = Math.max(0, pagado - nuevoTotal);
-
-    const contenido = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Ticket corregido #${venta.id}</title>
-          <style>
-            body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; font-size: 12px; }
-            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
-            .header h2 { margin: 0 0 5px 0; font-size: 18px; }
-            .header .sub { font-size: 11px; color: #666; margin-top: 8px; }
-            .cliente { margin: 10px 0; padding: 5px; background: #f0f0f0; border-radius: 3px; }
-            .item { margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dotted #ccc; }
-            .item-name { font-weight: bold; margin-bottom: 3px; }
-            .item-detail { font-size: 11px; color: #555; }
-            .totals { border-top: 2px dashed #000; padding-top: 10px; margin-top: 15px; }
-            .total-row { display: flex; justify-content: space-between; margin: 5px 0; }
-            .total-label { font-weight: bold; }
-            .total-amount { font-weight: bold; }
-            .pago { color: #059669; }
-            .pendiente { color: #d97706; font-weight: bold; }
-            .devolver { color: #2563eb; font-weight: bold; }
-            .modif { margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px; font-size: 11px; }
-            .modif h4 { margin: 0 0 8px 0; font-size: 12px; }
-            .modif ul { margin: 0; padding-left: 18px; }
-            .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; font-size: 11px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>Punto de Venta</h2>
-            <p><strong>Juan Mejía</strong></p>
-            <p><strong>Ticket corregido #${venta.id}</strong></p>
-            <p class="sub">${new Date().toLocaleString('es-MX')}</p>
-            ${venta.cliente ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(venta.cliente)}</div>` : ''}
-          </div>
-          
-          <div style="margin-bottom: 15px;"><strong>PRODUCTOS (actualizados):</strong></div>
-          ${items.map((i) => `
-            <div class="item">
-              <div class="item-name">${escapeHtml(i.nombre)}</div>
-              <div class="item-detail">${i.cantidad} × $${formatearMoneda(i.precio)} = $${formatearMoneda(i.precio * i.cantidad)}</div>
-            </div>
-          `).join('')}
-          
-          <div class="totals">
-            <div class="total-row">
-              <span class="total-label">TOTAL (nuevo):</span>
-              <span class="total-amount">$${formatearMoneda(nuevoTotal)}</span>
-            </div>
-            <div class="total-row">
-              <span>Pagado anteriormente:</span>
-              <span class="pago">$${formatearMoneda(pagado)}</span>
-            </div>
-            ${seLeDebeAlCliente > 0 ? `
-              <div class="total-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #000;">
-                <span class="devolver">Se le debe al cliente:</span>
-                <span class="devolver">$${formatearMoneda(seLeDebeAlCliente)}</span>
-              </div>
-            ` : ''}
-            ${pendiente > 0 ? `
-              <div class="total-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #000;">
-                <span class="pendiente">El cliente nos debe:</span>
-                <span class="pendiente">$${formatearMoneda(pendiente)}</span>
-              </div>
-            ` : ''}
-            ${pendiente === 0 && seLeDebeAlCliente === 0 ? `
-              <div class="total-row" style="margin-top: 8px; color: #059669;"><span>Cuenta saldada</span></div>
-            ` : ''}
-          </div>
-          
-          ${modificaciones.length > 0 ? `
-            <div class="modif">
-              <h4>Modificaciones realizadas:</h4>
-              <ul>
-                ${modificaciones.map((m) => `<li>${escapeHtml(m.replace('• ', ''))}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
-          
-          <div class="footer">
-            <p><strong>Ticket reimpreso por corrección</strong></p>
-            <p style="margin-top: 5px;">Conserve este ticket</p>
-          </div>
-        </body>
-      </html>
-    `;
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ventana.print();
+    imprimirTicket({
+      tipo: 'correccion',
+      ventaId: venta.id,
+      cliente: venta.cliente,
+      items: items.map((i) => ({
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        precio: i.precio,
+      })),
+      total: nuevoTotal,
+      pagado,
+      modificaciones,
+    });
   };
 
   const guardarEditarTicket = async () => {
