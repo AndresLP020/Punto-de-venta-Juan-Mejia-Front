@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, putVenta, cancelarVenta, type Devolucion, type PerdidaItem, type Producto, type VentaItemEdit, type MovimientoVenta } from '@/lib/api';
 import { formatearMoneda, formatearCantidad, escapeHtml, hoyISO, mensajeError } from '@/lib/utils';
 import { netoCobrado } from '@/lib/finanzas';
+import { imprimirTicket } from '@/lib/ticket';
 
 type Venta = {
   id: number;
@@ -380,19 +381,11 @@ function VentasPageContent() {
     pagado: number,
     modificaciones: string[]
   ) => {
-    const ventana = window.open('', '_blank');
-    if (!ventana) return;
     const nuevoTotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
     const pendiente = Math.max(0, nuevoTotal - pagado);
     const seLeDebeAlCliente = Math.max(0, pagado - nuevoTotal);
 
-    const contenido = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Ticket corregido #${venta.id}</title>
-          <style>
-            body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; font-size: 12px; }
+    const estilos = `
             .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
             .header h2 { margin: 0 0 5px 0; font-size: 18px; }
             .header .sub { font-size: 11px; color: #666; margin-top: 8px; }
@@ -411,9 +404,9 @@ function VentasPageContent() {
             .modif h4 { margin: 0 0 8px 0; font-size: 12px; }
             .modif ul { margin: 0; padding-left: 18px; }
             .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; font-size: 11px; }
-          </style>
-        </head>
-        <body>
+    `;
+
+    const cuerpo = `
           <div class="header">
             <h2>Punto de Venta</h2>
             <p><strong>Juan Mejía</strong></p>
@@ -469,12 +462,9 @@ function VentasPageContent() {
             <p><strong>Ticket reimpreso por corrección</strong></p>
             <p style="margin-top: 5px;">Conserve este ticket</p>
           </div>
-        </body>
-      </html>
     `;
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ventana.print();
+
+    imprimirTicket(`Ticket corregido #${venta.id}`, estilos, cuerpo);
   };
 
   const guardarEditarTicket = async () => {
