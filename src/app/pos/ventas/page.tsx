@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { getVentas, getDevoluciones, getPerdidas, postDevolucion, getProductos, putVenta, cancelarVenta, type Devolucion, type PerdidaItem, type Producto, type VentaItemEdit, type MovimientoVenta } from '@/lib/api';
 import { formatearMoneda, formatearCantidad, escapeHtml, hoyISO, mensajeError } from '@/lib/utils';
 import { netoCobrado } from '@/lib/finanzas';
-import { ajustarHojaAlTicket } from '@/lib/ticket';
+import { ajustarHojaAlTicket, imprimirTicketTermico, type TicketTermico } from '@/lib/ticket';
 
 type Venta = {
   id: number;
@@ -381,11 +381,29 @@ function VentasPageContent() {
     pagado: number,
     modificaciones: string[]
   ) => {
-    const ventana = window.open('', '_blank');
-    if (!ventana) return;
     const nuevoTotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
     const pendiente = Math.max(0, nuevoTotal - pagado);
     const seLeDebeAlCliente = Math.max(0, pagado - nuevoTotal);
+    const fecha = new Date().toLocaleString('es-MX');
+
+    const ticket: TicketTermico = {
+      encabezado: ['Punto de Venta', 'Juan Mejía', `Ticket corregido #${venta.id}`, fecha],
+      datos: venta.cliente ? [`Cliente: ${venta.cliente}`] : [],
+      titulo: 'PRODUCTOS (actualizados):',
+      items: items.map((i) => ({
+        nombre: i.nombre,
+        detalle: `${i.cantidad} x $${formatearMoneda(i.precio)} = $${formatearMoneda(i.precio * i.cantidad)}`,
+      })),
+      totales: [
+        { etiqueta: 'TOTAL (nuevo):', valor: `$${formatearMoneda(nuevoTotal)}`, resaltar: true },
+        { etiqueta: 'Pagado anteriormente:', valor: `$${formatearMoneda(pagado)}` },
+        ...(seLeDebeAlCliente > 0 ? [{ etiqueta: 'Se le debe al cliente:', valor: `$${formatearMoneda(seLeDebeAlCliente)}`, resaltar: true }] : []),
+        ...(pendiente > 0 ? [{ etiqueta: 'El cliente nos debe:', valor: `$${formatearMoneda(pendiente)}`, resaltar: true }] : []),
+        ...(pendiente === 0 && seLeDebeAlCliente === 0 ? [{ etiqueta: 'Cuenta saldada', valor: '' }] : []),
+      ],
+      avisos: modificaciones.length > 0 ? ['Modificaciones realizadas:', ...modificaciones.map((m) => `- ${m.replace('• ', '')}`)] : [],
+      pie: ['Ticket reimpreso por corrección', 'Conserve este ticket'],
+    };
 
     const contenido = `
       <!DOCTYPE html>
@@ -419,7 +437,7 @@ function VentasPageContent() {
             <h2>Punto de Venta</h2>
             <p><strong>Juan Mejía</strong></p>
             <p><strong>Ticket corregido #${venta.id}</strong></p>
-            <p class="sub">${new Date().toLocaleString('es-MX')}</p>
+            <p class="sub">${fecha}</p>
             ${venta.cliente ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(venta.cliente)}</div>` : ''}
           </div>
           
@@ -473,10 +491,14 @@ function VentasPageContent() {
         </body>
       </html>
     `;
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ajustarHojaAlTicket(ventana);
-    ventana.print();
+    imprimirTicketTermico(ticket, () => {
+      const ventana = window.open('', '_blank');
+      if (!ventana) return;
+      ventana.document.write(contenido);
+      ventana.document.close();
+      ajustarHojaAlTicket(ventana);
+      ventana.print();
+    });
   };
 
   const guardarEditarTicket = async () => {

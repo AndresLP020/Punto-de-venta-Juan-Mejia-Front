@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { escapeHtml } from '@/lib/utils';
-import { ajustarHojaAlTicket } from '@/lib/ticket';
+import { ajustarHojaAlTicket, imprimirTicketTermico, type TicketTermico } from '@/lib/ticket';
 
 type CarritoItem = {
   producto: Producto;
@@ -272,11 +272,28 @@ export default function POSPage() {
   };
 
   const imprimirTicket = () => {
-    const ventana = window.open('', '_blank');
-    if (!ventana) return;
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
     const pendienteTicket = Math.max(0, totalCarrito - montoPago);
     const cambioTicket = montoPago > totalCarrito ? montoPago - totalCarrito : 0;
+    const fecha = new Date().toLocaleString('es-MX');
+
+    const ticket: TicketTermico = {
+      encabezado: ['Punto de Venta', 'Juan Mejía', fecha],
+      datos: clienteSeleccionado ? [`Cliente: ${clienteSeleccionado.nombre}`] : [],
+      titulo: 'PRODUCTOS:',
+      items: carrito.map((i) => ({
+        nombre: i.producto.nombre,
+        detalle: `${i.producto.esGranel ? i.cantidad.toFixed(2) + ' kg' : 'Cantidad: ' + i.cantidad} x $${formatearMoneda(i.precioVenta)} = $${formatearMoneda(i.precioVenta * i.cantidad)}`,
+      })),
+      totales: [
+        { etiqueta: 'TOTAL:', valor: `$${formatearMoneda(totalCarrito)}`, resaltar: true },
+        { etiqueta: 'Pagado:', valor: `$${formatearMoneda(montoPago)}` },
+        ...(cambioTicket > 0 ? [{ etiqueta: 'Cambio:', valor: `$${formatearMoneda(cambioTicket)}` }] : []),
+        ...(pendienteTicket > 0 ? [{ etiqueta: 'PENDIENTE:', valor: `$${formatearMoneda(pendienteTicket)}`, resaltar: true }] : []),
+      ],
+      avisos: pendienteTicket > 0 ? ['VENTA CON CRÉDITO', `Monto pendiente de pago: $${formatearMoneda(pendienteTicket)}`] : [],
+      pie: [pendienteTicket > 0 ? 'Venta con crédito pendiente' : 'Gracias por su compra', 'Conserve este ticket'],
+    };
 
     const contenido = `
       <!DOCTYPE html>
@@ -307,7 +324,7 @@ export default function POSPage() {
           <div class="header">
             <h2>Punto de Venta</h2>
             <p><strong>Juan Mejía</strong></p>
-            <p>${new Date().toLocaleString('es-MX')}</p>
+            <p>${fecha}</p>
             ${clienteSeleccionado ? `<div class="cliente"><strong>Cliente:</strong> ${escapeHtml(clienteSeleccionado.nombre)}</div>` : ''}
           </div>
           
@@ -362,10 +379,14 @@ export default function POSPage() {
       </html>
     `;
 
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ajustarHojaAlTicket(ventana);
-    ventana.print();
+    imprimirTicketTermico(ticket, () => {
+      const ventana = window.open('', '_blank');
+      if (!ventana) return;
+      ventana.document.write(contenido);
+      ventana.document.close();
+      ajustarHojaAlTicket(ventana);
+      ventana.print();
+    });
   };
 
   const irAlCarrito = () => document.getElementById('carrito-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
