@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { escapeHtml } from '@/lib/utils';
-import { imprimirTicket as imprimirTicketTermico } from '@/lib/ticket';
+import { ajustarHojaAlTicket } from '@/lib/ticket';
 
 type CarritoItem = {
   producto: Producto;
@@ -272,11 +272,19 @@ export default function POSPage() {
   };
 
   const imprimirTicket = () => {
+    const ventana = window.open('', '_blank');
+    if (!ventana) return;
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
     const pendienteTicket = Math.max(0, totalCarrito - montoPago);
     const cambioTicket = montoPago > totalCarrito ? montoPago - totalCarrito : 0;
 
-    const estilos = `
+    const contenido = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Ticket de Venta</title>
+          <style>
+            body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; font-size: 12px; }
             .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
             .header h2 { margin: 0 0 5px 0; font-size: 18px; }
             .header p { margin: 3px 0; font-size: 11px; }
@@ -293,9 +301,9 @@ export default function POSPage() {
             .cambio { color: #059669; }
             .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; font-size: 11px; }
             .advertencia { background: #fef3c7; padding: 8px; margin-top: 10px; border-radius: 3px; font-size: 11px; color: #92400e; }
-    `;
-
-    const cuerpo = `
+          </style>
+        </head>
+        <body>
           <div class="header">
             <h2>Punto de Venta</h2>
             <p><strong>Juan Mejía</strong></p>
@@ -350,9 +358,14 @@ export default function POSPage() {
             <p><strong>${pendienteTicket > 0 ? 'Venta con crédito pendiente' : 'Gracias por su compra'}</strong></p>
             <p style="margin-top: 5px;">Conserve este ticket</p>
           </div>
+        </body>
+      </html>
     `;
 
-    imprimirTicketTermico('Ticket de Venta', estilos, cuerpo);
+    ventana.document.write(contenido);
+    ventana.document.close();
+    ajustarHojaAlTicket(ventana);
+    ventana.print();
   };
 
   const irAlCarrito = () => document.getElementById('carrito-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
