@@ -167,7 +167,7 @@ export default function ReportesPage() {
     setExportando(true);
     const { inicio, fin } = obtenerRangoFechas();
     const encabezado = [
-      'Reporte de ventas - POS Juan Mejía',
+      'Reporte de ventas - POS El Pollito Mixteco',
       `Período: ${formatearRangoFechas()}`,
       `Generado: ${new Date().toLocaleString('es-MX')}`,
       '',
@@ -591,7 +591,7 @@ export default function ReportesPage() {
         </div>
 
         <p className="mt-8 pt-6 border-t border-slate-700/80 text-center text-slate-500 text-xs">
-          Reporte generado el {new Date().toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })} · POS Juan Mejía
+          Reporte generado el {new Date().toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })} · POS El Pollito Mixteco
         </p>
         </>
         )}

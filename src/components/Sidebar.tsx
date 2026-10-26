@@ -62,7 +62,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </svg>
           </div>
           <div>
-            <span className="font-bold block leading-tight bg-gradient-to-r from-white via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">POS Juan Mejía</span>
+            <span className="font-bold block leading-tight bg-gradient-to-r from-white via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">El Pollito Mixteco</span>
             <span className="text-xs text-slate-500 font-medium">Sistema de ventas</span>
           </div>
         </Link>

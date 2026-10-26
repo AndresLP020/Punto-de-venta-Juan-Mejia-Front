@@ -13,6 +13,8 @@ export type TicketDatos = {
   total: number;
   pagado: number;
   cliente?: string;
+  /** Nombre de quien hizo la venta. */
+  vendedor?: string;
   tipo?: 'venta' | 'correccion';
   ventaId?: number;
   modificaciones?: string[];
@@ -86,14 +88,14 @@ function textoTicket(d: TicketDatos): string {
   const cambio = pagado > d.total ? pagado - d.total : 0;
   const correccion = d.tipo === 'correccion';
   const lineas: string[] = [
-    centro('PUNTO DE VENTA'),
-    centro('Juan Mejia'),
+    centro('EL POLLITO MIXTECO'),
   ];
 
   if (correccion && d.ventaId != null) {
     lineas.push(centro(`Ticket corregido #${d.ventaId}`));
   }
   lineas.push(centro(fechaTicket()));
+  if (d.vendedor) lineas.push(`Le atendio: ${d.vendedor}`);
   if (d.cliente) lineas.push(`Cliente: ${d.cliente}`);
   lineas.push(sep('='));
   lineas.push(correccion ? 'PRODUCTOS (actualizados)' : 'PRODUCTOS');

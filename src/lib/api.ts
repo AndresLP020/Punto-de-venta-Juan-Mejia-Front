@@ -184,6 +184,8 @@ export type Venta = {
   abonos?: MovimientoVenta[];
   reembolsos?: MovimientoVenta[];
   fechaCancelacion?: string;
+  usuario?: string;
+  usuarioNombre?: string;
 };
 
 export const getVentas = (): Promise<Venta[]> => get('/api/ventas', 'Error al cargar ventas');

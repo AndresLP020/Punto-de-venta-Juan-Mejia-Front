@@ -75,7 +75,7 @@ export default function HomePage() {
           </span>
           <h1 className="mt-6 text-6xl font-black leading-[1.05] tracking-tight">
             Punto de Venta
-            <span className="texto-arcoiris block">Juan Mejía</span>
+            <span className="texto-arcoiris block">El Pollito Mixteco</span>
           </h1>
           <p className="mt-5 max-w-md text-lg text-white/70">
             Todo tu negocio en un solo lugar: vende rápido, controla tu inventario y conoce tus ganancias reales.
@@ -101,7 +101,7 @@ export default function HomePage() {
         <section className="mx-auto w-full max-w-[440px]">
           <div className="mb-8 text-center lg:hidden">
             <h1 className="text-4xl font-black tracking-tight text-white">
-              Punto de Venta <span className="texto-arcoiris block">Juan Mejía</span>
+              Punto de Venta <span className="texto-arcoiris block">El Pollito Mixteco</span>
             </h1>
           </div>
 

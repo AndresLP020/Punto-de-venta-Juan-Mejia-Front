@@ -245,7 +245,7 @@ export default function POSPage() {
     }
     setEnviando(true);
     try {
-      await postVenta({
+      const venta = await postVenta({
         items: carrito.map((i) => ({
           id: i.producto.id,
           nombre: i.producto.nombre,
@@ -258,7 +258,7 @@ export default function POSPage() {
         cliente: clienteSeleccionado?.nombre || '',
         clienteId: clienteSeleccionado?.id,
       });
-      imprimirTicket();
+      imprimirTicket(venta.usuarioNombre);
       setCarrito([]);
       setClienteSeleccionado(null);
       setMontoPagado('');
@@ -270,10 +270,11 @@ export default function POSPage() {
     }
   };
 
-  const imprimirTicket = () => {
+  const imprimirTicket = (vendedor?: string) => {
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
     abrirTicket({
       cliente: clienteSeleccionado?.nombre,
+      vendedor,
       items: carrito.map((i) => ({
         nombre: i.producto.nombre,
         cantidad: i.cantidad,

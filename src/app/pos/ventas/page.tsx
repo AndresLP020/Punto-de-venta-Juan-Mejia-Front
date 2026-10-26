@@ -18,7 +18,12 @@ type Venta = {
   estado?: string;
   abonos?: MovimientoVenta[];
   reembolsos?: MovimientoVenta[];
+  usuario?: string;
+  usuarioNombre?: string;
 };
+
+/** Quién hizo la venta (las ventas antiguas solo guardaban el usuario de login). */
+const vendedorVenta = (v: Venta) => v.usuarioNombre || v.usuario || '';
 
 /** Lo que el cliente ha pagado y no se le ha devuelto. */
 const netoVenta = (v: Venta) => netoCobrado({ ...v, items: [] });
@@ -148,6 +153,7 @@ function VentasPageContent() {
         (v) =>
           v.id.toString().includes(termino) ||
           v.cliente?.toLowerCase().includes(termino) ||
+          vendedorVenta(v).toLowerCase().includes(termino) ||
           v.items.some((i) => i.nombre.toLowerCase().includes(termino))
       );
     }
@@ -386,6 +392,7 @@ function VentasPageContent() {
       tipo: 'correccion',
       ventaId: venta.id,
       cliente: venta.cliente,
+      vendedor: vendedorVenta(venta),
       items: items.map((i) => ({
         nombre: i.nombre,
         cantidad: i.cantidad,
@@ -627,6 +634,14 @@ function VentasPageContent() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                               </svg>
                               {venta.cliente}
+                            </span>
+                          )}
+                          {vendedorVenta(venta) && (
+                            <span className="flex items-center gap-1.5" title="Vendedor">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                              Vendió: {vendedorVenta(venta)}
                             </span>
                           )}
                         </div>
