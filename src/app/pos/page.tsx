@@ -234,8 +234,9 @@ export default function POSPage() {
   const cobrar = async () => {
     if (carrito.length === 0) return;
     const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
-    if (montoPago < 0 || montoPago > totalCarrito * 2) {
-      alert('El monto pagado debe ser válido');
+    // Cualquier monto mayor al total es válido: el excedente se entrega como cambio.
+    if (!Number.isFinite(montoPago) || montoPago < 0) {
+      alert('El monto pagado no puede ser negativo');
       return;
     }
     if (montoPago < totalCarrito && !clienteSeleccionado) {
