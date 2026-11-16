@@ -155,6 +155,13 @@ export const postCategoria = (nombre: string) => send('POST', '/api/categorias',
 
 export const deleteCategoria = (nombre: string) => send('DELETE', `/api/categorias/${encodeURIComponent(nombre)}`, undefined, 'Error al eliminar categoría');
 
+/** Configuración del ticket: ancho de papel y logo (data URL PNG) para 58 y 80 mm. */
+export type ConfigTicket = { anchoPapel: 58 | 80; mostrarLogo: boolean; ticketLogo58: string; ticketLogo80: string };
+
+export const getConfigTicket = () => get<ConfigTicket>('/api/config-ticket', 'Error al cargar la configuración del ticket');
+
+export const putConfigTicket = (body: Partial<ConfigTicket>) => send<ConfigTicket>('PUT', '/api/config-ticket', body, 'Error al guardar la configuración del ticket');
+
 /** Carro o recipiente cuyo peso (tara) se descuenta al pesar productos a granel. */
 export type Carro = { id: string; nombre: string; pesoKg: number };
 

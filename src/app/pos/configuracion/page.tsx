@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import ConfigTicketSection from '@/components/ConfigTicketSection';
 import {
   getUsuarios,
   postUsuario,
@@ -140,7 +141,7 @@ export default function ConfiguracionPage() {
     <div className="flex flex-col min-h-full text-white">
       <header className="sticky top-0 z-10 px-6 py-4 border-b border-slate-700/80 bg-slate-900/90 backdrop-blur-sm">
         <h1 className="text-xl font-bold tracking-tight text-white">Configuración</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Usuarios, permisos y apariencia</p>
+        <p className="text-slate-400 text-sm mt-0.5">Usuarios, permisos, apariencia y ticket</p>
       </header>
 
       <div className="flex-1 p-6 space-y-8">
@@ -169,6 +170,8 @@ export default function ConfiguracionPage() {
             </span>
           </div>
         </section>
+
+        <ConfigTicketSection />
 
         {/* Usuarios */}
         <section className="rounded-2xl bg-slate-800/80 border border-slate-700/80 overflow-hidden shadow-elevated">
