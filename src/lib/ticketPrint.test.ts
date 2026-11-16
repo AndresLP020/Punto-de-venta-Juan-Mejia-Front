@@ -84,3 +84,35 @@ describe('pagaré', () => {
     expect(importeEnLetras(2000000)).toBe('DOS MILLONES DE PESOS 00/100 M.N.');
   });
 });
+
+describe('ticket de pedido', () => {
+  const pedido = { ...TICKET_PRUEBA, tipo: 'pedido' as const, ventaId: 15, pagado: 0, cliente: 'Maria Lopez', saldoAnterior: 200 };
+
+  it('es igual al de venta pero sin lo pagado: solo el total de la compra', () => {
+    const t = textoTicket(pedido, 80);
+    expect(t).toContain('Pedido No. 15');
+    expect(t).toMatch(/TOTAL\s+\$110\.00/);
+    expect(t).not.toMatch(/^Pagado/m);
+    expect(t).not.toContain('Cantidad pagada');
+    expect(t).not.toContain('VENTA A CREDITO');
+    expect(t).toContain('Pase a caja a pagar');
+  });
+
+  it('incluye el pagaré como antes, por el total de la compra', () => {
+    const t = textoTicket(pedido, 80);
+    expect(t).toContain('P A G A R E');
+    expect(t).toMatch(/Bueno por \$110\.00/);
+    expect(t).toMatch(/Cantidad que se debe:\s+\$110\.00/);
+  });
+
+  it('muestra el total de la cuenta general del cliente', () => {
+    const t = textoTicket(pedido, 80);
+    expect(t).toContain('ESTADO DE CUENTA');
+    expect(t).toMatch(/Saldo anterior\s+\$200\.00/);
+    expect(t).toMatch(/Esta compra\s+\$110\.00/);
+    expect(t).toMatch(/TOTAL DE SU CUENTA\s+\$310\.00/);
+    // Sin cliente (público en general) no hay cuenta que mostrar.
+    expect(textoTicket({ ...pedido, cliente: undefined, saldoAnterior: null }, 80)).not.toContain('ESTADO DE CUENTA');
+    expect(Math.max(...textoTicket(pedido, 58).split('\n').map((l) => l.length))).toBeLessThanOrEqual(32);
+  });
+});

@@ -15,7 +15,10 @@ export type TicketDatos = {
   cliente?: string;
   /** Nombre de quien hizo la venta. */
   vendedor?: string;
-  tipo?: 'venta' | 'correccion';
+  /** 'pedido' = ticket para pasar a pagar a caja: igual al de venta pero sin lo pagado. */
+  tipo?: 'venta' | 'correccion' | 'pedido';
+  /** Lo que el cliente ya debía antes de esta compra (para el total de su cuenta). */
+  saldoAnterior?: number | null;
   ventaId?: number;
   modificaciones?: string[];
 };
@@ -264,7 +267,7 @@ function lineasPagare(d: TicketDatos, pendiente: number): string[] {
   );
   l.push('');
   l.push(linea('Total de la compra:', `$${formatearMoneda(d.total)}`));
-  l.push(linea('Cantidad pagada:', `$${formatearMoneda(Math.min(d.pagado, d.total))}`));
+  if (d.tipo !== 'pedido') l.push(linea('Cantidad pagada:', `$${formatearMoneda(Math.min(d.pagado, d.total))}`));
   l.push(linea('Cantidad que se debe:', monto));
   l.push(linea('Se pagara con este pagare:', monto));
   l.push('');
@@ -282,7 +285,8 @@ function lineasPagare(d: TicketDatos, pendiente: number): string[] {
 
 export function textoTicket(d: TicketDatos, papel: AnchoPapel = 80): string {
   ANCHO = caracteresPorLinea(papel);
-  const pagado = d.pagado;
+  const pedido = d.tipo === 'pedido';
+  const pagado = pedido ? 0 : d.pagado;
   const pendiente = Math.max(0, d.total - pagado);
   const cambio = pagado > d.total ? pagado - d.total : 0;
   const correccion = d.tipo === 'correccion';
@@ -294,6 +298,7 @@ export function textoTicket(d: TicketDatos, papel: AnchoPapel = 80): string {
     lineas.push(centro(`Ticket corregido #${d.ventaId}`));
   }
   lineas.push(centro(fechaTicket()));
+  if (pedido && d.ventaId != null) lineas.push(centro(`Pedido No. ${d.ventaId}`));
   if (d.vendedor) lineas.push(`Le atendio: ${d.vendedor}`);
   if (d.cliente) lineas.push(`Cliente: ${d.cliente}`);
   lineas.push(sep('='));
@@ -308,20 +313,20 @@ export function textoTicket(d: TicketDatos, papel: AnchoPapel = 80): string {
 
   lineas.push(sep('='));
   lineas.push(linea(correccion ? 'TOTAL (nuevo)' : 'TOTAL', `$${formatearMoneda(d.total)}`));
-  lineas.push(linea(correccion ? 'Pagado antes' : 'Pagado', `$${formatearMoneda(pagado)}`));
+  if (!pedido) lineas.push(linea(correccion ? 'Pagado antes' : 'Pagado', `$${formatearMoneda(pagado)}`));
   if (!correccion && cambio > 0) {
     lineas.push(linea('Cambio', `$${formatearMoneda(cambio)}`));
   }
   if (correccion && pagado > d.total) {
     lineas.push(linea('Se le debe', `$${formatearMoneda(pagado - d.total)}`));
   }
-  if (pendiente > 0) {
+  if (pendiente > 0 && !pedido) {
     lineas.push(linea(correccion ? 'Nos debe' : 'PENDIENTE', `$${formatearMoneda(pendiente)}`));
   }
   if (correccion && pendiente === 0 && pagado <= d.total) {
     lineas.push(linea('Estado', 'Cuenta saldada'));
   }
-  if (pendiente > 0 && !correccion) {
+  if (pendiente > 0 && !correccion && !pedido) {
     lineas.push(sep());
     lineas.push(centro('VENTA A CREDITO'));
     lineas.push(centro(`Pendiente: $${formatearMoneda(pendiente)}`));
@@ -333,8 +338,17 @@ export function textoTicket(d: TicketDatos, papel: AnchoPapel = 80): string {
       lineas.push(`- ${m.replace(/^•\s*/, '')}`);
     }
   }
+  if (pedido && d.cliente && d.saldoAnterior != null) {
+    // Total de la cuenta general del cliente: lo que ya debía más esta compra.
+    lineas.push(sep());
+    lineas.push(centro('ESTADO DE CUENTA'));
+    lineas.push(linea('Saldo anterior', `$${formatearMoneda(d.saldoAnterior)}`));
+    lineas.push(linea('Esta compra', `$${formatearMoneda(d.total)}`));
+    lineas.push(linea('TOTAL DE SU CUENTA', `$${formatearMoneda(d.saldoAnterior + d.total)}`));
+  }
   lineas.push(sep());
-  lineas.push(centro(correccion ? 'Ticket reimpreso' : pendiente > 0 ? 'Venta a credito' : 'Gracias por su compra'));
+  if (pedido) lineas.push(centro('Pase a caja a pagar'));
+  lineas.push(centro(correccion ? 'Ticket reimpreso' : pedido ? 'con este ticket' : pendiente > 0 ? 'Venta a credito' : 'Gracias por su compra'));
   lineas.push(centro('Conserve este ticket'));
   lineas.push(...lineasPagare(d, pendiente));
   for (let n = 0; n < 8; n += 1) lineas.push('');
@@ -578,7 +592,9 @@ export const TICKET_PRUEBA: TicketDatos = {
 export function imprimirTicket(d: TicketDatos, config?: ConfigTicket): void {
   const titulo = d.tipo === 'correccion' && d.ventaId != null
     ? `Ticket corregido #${d.ventaId}`
-    : 'Ticket de venta';
+    : d.tipo === 'pedido'
+      ? `Pedido #${d.ventaId ?? ''}`
+      : 'Ticket de venta';
   void (config ? Promise.resolve(config) : obtenerConfig()).then((c) => {
     const papel: AnchoPapel = c?.anchoPapel === 58 ? 58 : 80;
     const logo = logoParaTicket(c);

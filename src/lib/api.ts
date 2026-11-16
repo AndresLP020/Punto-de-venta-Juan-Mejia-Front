@@ -13,6 +13,8 @@ export type PermisosPOS = {
   darDeBajaProductos: boolean;
   actualizarProductos: boolean;
   borrarProductos: boolean;
+  /** Cobrar en caja los pedidos que se mandan desde Ventas. */
+  cobrarEnCaja?: boolean;
 };
 
 export type UsuarioSesion = {
@@ -154,6 +156,41 @@ export const getCategorias = () => get('/api/categorias', 'Error al cargar categ
 export const postCategoria = (nombre: string) => send('POST', '/api/categorias', { nombre: nombre.trim() }, 'Error al crear categoría');
 
 export const deleteCategoria = (nombre: string) => send('DELETE', `/api/categorias/${encodeURIComponent(nombre)}`, undefined, 'Error al eliminar categoría');
+
+export type EstadoPedido = 'por_pagar' | 'pagado' | 'entregado' | 'cancelado';
+
+/** Pedido tomado en Ventas que se paga en caja y después se entrega. */
+export type Pedido = {
+  id: number;
+  fecha: string;
+  items: { id: number; nombre: string; precio: number; cantidad: number; costo?: number }[];
+  total: number;
+  cliente?: string;
+  clienteId?: number | null;
+  estado: EstadoPedido;
+  usuario?: string;
+  usuarioNombre?: string;
+  cajeroNombre?: string;
+  fechaPago?: string;
+  ventaId?: number;
+  entregadoPorNombre?: string;
+  fechaEntrega?: string;
+  fechaCancelacion?: string;
+  canceladoPor?: string;
+};
+
+export const getPedidos = (estados: EstadoPedido[], limite = 200) =>
+  get<Pedido[]>(`/api/pedidos?estado=${estados.join(',')}&limite=${limite}`, 'Error al cargar pedidos');
+
+export const postPedido = (body: { items: { id: number; nombre: string; precio: number; cantidad: number }[]; cliente?: string; clienteId?: number }) =>
+  send<Pedido & { saldoCliente?: number | null }>('POST', '/api/pedidos', body, 'Error al crear el pedido');
+
+export const pagarPedido = (id: number, body: { pagado?: number; clienteId?: number | null }) =>
+  send<{ pedido: Pedido; venta: Venta; cambio: number }>('POST', `/api/pedidos/${id}/pagar`, body, 'Error al cobrar el pedido');
+
+export const entregarPedido = (id: number) => send<Pedido>('POST', `/api/pedidos/${id}/entregar`, undefined, 'Error al entregar el pedido');
+
+export const cancelarPedido = (id: number) => send<Pedido>('POST', `/api/pedidos/${id}/cancelar`, undefined, 'Error al cancelar el pedido');
 
 /** Configuración del ticket: ancho de papel y logo (data URL PNG) para 58 y 80 mm. */
 export type ConfigTicket = { anchoPapel: 58 | 80; mostrarLogo: boolean; ticketLogo58: string; ticketLogo80: string };

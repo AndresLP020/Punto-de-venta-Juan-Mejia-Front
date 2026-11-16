@@ -17,6 +17,7 @@ const permisosDefault: PermisosPOS = {
   darDeBajaProductos: false,
   actualizarProductos: true,
   borrarProductos: false,
+  cobrarEnCaja: false,
 };
 
 export default function ConfiguracionPage() {
@@ -222,6 +223,7 @@ export default function ConfiguracionPage() {
                     {u.permisos.darDeBajaProductos && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 text-xs">Dar de baja</span>}
                     {u.permisos.actualizarProductos && <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">Actualizar prod.</span>}
                     {u.permisos.borrarProductos && <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Borrar prod.</span>}
+                    {u.permisos.cobrarEnCaja && <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-xs">Caja</span>}
                   </span>
                 </li>
               ))}
@@ -250,6 +252,7 @@ export default function ConfiguracionPage() {
                           {u.permisos.darDeBajaProductos && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 text-xs">Dar de baja</span>}
                           {u.permisos.actualizarProductos && <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">Actualizar prod.</span>}
                           {u.permisos.borrarProductos && <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Borrar prod.</span>}
+                    {u.permisos.cobrarEnCaja && <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-xs">Caja</span>}
                         </span>
                       </td>
                       <td className="px-6 py-3 text-right">
@@ -324,12 +327,13 @@ export default function ConfiguracionPage() {
                       { key: 'darDeBajaProductos' as const, label: 'Dar de baja productos' },
                       { key: 'actualizarProductos' as const, label: 'Actualizar productos' },
                       { key: 'borrarProductos' as const, label: 'Borrar productos' },
+                      { key: 'cobrarEnCaja' as const, label: 'Cobrar en caja' },
                     ] as const
                   ).map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={form.permisos[key]}
+                        checked={Boolean(form.permisos[key])}
                         onChange={() => togglePermiso(key)}
                         className="rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                       />

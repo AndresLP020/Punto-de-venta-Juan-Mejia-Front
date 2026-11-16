@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, getCarros, postCarro, deleteCarro, type Producto, type Cliente, type Carro } from '@/lib/api';
+import { getProductos, getProductoPorCodigo, getCategorias, postPedido, getClientes, getCarros, postCarro, deleteCarro, type Producto, type Cliente, type Carro } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { imprimirTicket as abrirTicket } from '@/lib/ticketPrint';
 import { getBascula, CONFIG_BASCULA_DEFAULT, type ConfigBascula, type EstadoBascula } from '@/lib/bascula';
@@ -47,7 +47,6 @@ export default function POSPage() {
   const [productoEncontrado, setProductoEncontrado] = useState<Producto | null>(null);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
-  const [montoPagado, setMontoPagado] = useState<string>('');
   const [productoGranelModal, setProductoGranelModal] = useState<Producto | null>(null);
   const [granelKg, setGranelKg] = useState<string>('1');
   // Báscula conectada por USB/serial: llena el peso sola mientras la ventana de venta por peso está abierta.
@@ -306,16 +305,6 @@ export default function POSPage() {
   };
 
   const totalCarrito = carrito.reduce((s, i) => s + i.precioVenta * i.cantidad, 0);
-  const parseMontoPagado = (): number => {
-    const raw = String(montoPagado).replace(/,/g, '');
-    if (raw === '') return 0;
-    const n = parseFloat(raw);
-    return isNaN(n) ? 0 : n;
-  };
-  const montoPagadoNum = parseMontoPagado();
-  const pagado = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
-  const pendiente = Math.max(0, totalCarrito - pagado);
-  const cambio = pagado > totalCarrito ? pagado - totalCarrito : 0;
 
   const productosDisponibles = categoriaFiltro
     ? productos.filter((p) => p.categoria === categoriaFiltro)
@@ -327,60 +316,51 @@ export default function POSPage() {
     promedioItem: carrito.length > 0 ? totalCarrito / carrito.reduce((sum, i) => sum + i.cantidad, 0) : 0,
   };
 
-  const cobrar = async () => {
+  /** Manda el carrito a caja como pedido pendiente de pago e imprime el ticket del pedido. */
+  const enviarACaja = async () => {
     if (carrito.length === 0) return;
-    const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
-    // Cualquier monto mayor al total es válido: el excedente se entrega como cambio.
-    if (!Number.isFinite(montoPago) || montoPago < 0) {
-      alert('El monto pagado no puede ser negativo');
-      return;
-    }
-    if (montoPago < totalCarrito && !clienteSeleccionado) {
-      alert('Para registrar una venta a crédito selecciona un cliente; si no, no se podrá cobrar el saldo pendiente.');
-      return;
-    }
     setEnviando(true);
     try {
-      const venta = await postVenta({
+      const pedido = await postPedido({
         items: carrito.map((i) => ({
           id: i.producto.id,
           nombre: i.producto.nombre,
           precio: i.precioVenta,
           cantidad: i.cantidad,
-          costo: i.producto.costo != null ? i.producto.costo : 0,
         })),
-        total: totalCarrito,
-        pagado: montoPago,
         cliente: clienteSeleccionado?.nombre || '',
         clienteId: clienteSeleccionado?.id,
       });
-      imprimirTicket(venta.usuarioNombre, venta.id);
+      abrirTicket({
+        tipo: 'pedido',
+        ventaId: pedido.id,
+        cliente: pedido.cliente || undefined,
+        vendedor: pedido.usuarioNombre,
+        items: carrito.map((i) => ({
+          nombre: i.producto.nombre,
+          cantidad: i.cantidad,
+          precio: i.precioVenta,
+          esGranel: i.producto.esGranel,
+        })),
+        total: pedido.total,
+        pagado: 0,
+        saldoAnterior: pedido.saldoCliente ?? null,
+      });
+      // El stock ya quedó apartado en el servidor: reflejarlo en la lista sin recargar.
+      setProductos((prev) =>
+        prev.map((p) => {
+          const enCarrito = carrito.find((c) => c.producto.id === p.id);
+          return enCarrito ? { ...p, stock: Math.round((p.stock - enCarrito.cantidad) * 1000) / 1000 } : p;
+        })
+      );
       setCarrito([]);
       setClienteSeleccionado(null);
-      setMontoPagado('');
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : 'Error al registrar la venta');
+      alert(err instanceof Error ? err.message : 'Error al crear el pedido');
     } finally {
       setEnviando(false);
     }
-  };
-
-  const imprimirTicket = (vendedor?: string, ventaId?: number) => {
-    const montoPago = montoPagado.trim() === '' ? totalCarrito : montoPagadoNum;
-    abrirTicket({
-      ventaId,
-      cliente: clienteSeleccionado?.nombre,
-      vendedor,
-      items: carrito.map((i) => ({
-        nombre: i.producto.nombre,
-        cantidad: i.cantidad,
-        precio: i.precioVenta,
-        esGranel: i.producto.esGranel,
-      })),
-      total: totalCarrito,
-      pagado: montoPago,
-    });
   };
 
   const granelBruto = parseFloat(granelKg) || 0;
@@ -932,84 +912,19 @@ export default function POSPage() {
                     </div>
                   </div>
 
-                  {/* Monto pagado */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-sm font-medium text-slate-300">
-                        Monto pagado
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setMontoPagado(formatearMoneda(totalCarrito))}
-                        className="text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-500/50 hover:border-emerald-400 rounded-lg px-2.5 py-1 transition"
-                      >
-                        Pagado completo
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={formatInputConComas(montoPagado)}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/,/g, '');
-                          if (v === '') {
-                            setMontoPagado('');
-                            return;
-                          }
-                          const parts = v.split('.');
-                          if (parts.length > 2) return;
-                          if (parts[1] !== undefined && parts[1].length > 2) return;
-                          if (/^\d*\.?\d*$/.test(v)) setMontoPagado(v);
-                        }}
-                        onBlur={() => {
-                          const n = parseMontoPagado();
-                          if (n >= 0) setMontoPagado(n > 0 ? formatearMoneda(n) : '');
-                        }}
-                        className="w-full pl-6 pr-3 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-500 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        placeholder="0.00"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && carrito.length > 0) {
-                            cobrar();
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cambio o Pendiente */}
-                  {cambio > 0 && (
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-300">Cambio:</span>
-                        <span className="text-lg font-bold text-green-400">${formatearMoneda(cambio)}</span>
-                      </div>
-                    </div>
-                  )}
-                  {pendiente > 0 && (
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-300">Pendiente:</span>
-                        <span className="text-lg font-bold text-amber-400">${formatearMoneda(pendiente)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Botón cobrar */}
+                  {/* Enviar a caja */}
                   <button
-                    onClick={cobrar}
+                    onClick={enviarACaja}
                     disabled={carrito.length === 0 || enviando || !puedeVender}
                     title={puedeVender ? undefined : 'Tu usuario no tiene permiso para hacer ventas'}
                     className="w-full py-3.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg transition shadow-lg touch-manipulation min-h-[48px]"
                   >
-                    {!puedeVender ? 'Sin permiso para vender' : enviando ? 'Procesando...' : pendiente > 0 ? 'Registrar Venta con Crédito' : 'Cobrar e Imprimir'}
+                    {!puedeVender ? 'Sin permiso para vender' : enviando ? 'Enviando…' : 'Enviar a caja e imprimir pedido'}
                   </button>
-                  {pendiente > 0 && (
-                    <p className="text-xs text-amber-400 text-center">
-                      Se registrará una deuda de ${formatearMoneda(pendiente)}
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-400 text-center">
+                    El cliente paga en caja con su ticket. Después entrega su mercancía en{' '}
+                    <Link href="/pos/pedidos" className="text-emerald-400 hover:underline">Pedidos</Link>.
+                  </p>
                 </div>
               </div>
             )}
@@ -1029,7 +944,7 @@ export default function POSPage() {
               <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-white/25 px-2 text-xs font-bold">
                 {carrito.length}
               </span>
-              Ver carrito y cobrar
+              Ver carrito y enviar a caja
             </span>
             <span className="text-lg font-black tabular-nums">${formatearMoneda(totalCarrito)}</span>
           </button>
