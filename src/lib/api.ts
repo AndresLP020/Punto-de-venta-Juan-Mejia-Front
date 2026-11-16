@@ -155,7 +155,16 @@ export const postCategoria = (nombre: string) => send('POST', '/api/categorias',
 
 export const deleteCategoria = (nombre: string) => send('DELETE', `/api/categorias/${encodeURIComponent(nombre)}`, undefined, 'Error al eliminar categoría');
 
-export const getProductoPorCodigo = (codigo: string) => get(`/api/productos/codigo/${encodeURIComponent(codigo)}`, 'Producto no encontrado');
+/** Carro o recipiente cuyo peso (tara) se descuenta al pesar productos a granel. */
+export type Carro = { id: string; nombre: string; pesoKg: number };
+
+export const getCarros = () => get<Carro[]>('/api/carros', 'Error al cargar carros');
+
+export const postCarro = (nombre: string, pesoKg: number) => send<Carro[]>('POST', '/api/carros', { nombre: nombre.trim(), pesoKg }, 'Error al guardar el carro');
+
+export const deleteCarro = (id: string) => send<Carro[]>('DELETE', `/api/carros/${encodeURIComponent(id)}`, undefined, 'Error al eliminar el carro');
+
+export const getProductoPorCodigo =(codigo: string) => get(`/api/productos/codigo/${encodeURIComponent(codigo)}`, 'Producto no encontrado');
 
 export const postProducto = (body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) =>
   send('POST', '/api/productos', body, 'Error al crear producto');

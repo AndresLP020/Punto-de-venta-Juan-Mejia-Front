@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, type Producto, type Cliente } from '@/lib/api';
+import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, getCarros, postCarro, deleteCarro, type Producto, type Cliente, type Carro } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { imprimirTicket as abrirTicket } from '@/lib/ticketPrint';
 
@@ -49,8 +49,66 @@ export default function POSPage() {
   const [montoPagado, setMontoPagado] = useState<string>('');
   const [productoGranelModal, setProductoGranelModal] = useState<Producto | null>(null);
   const [granelKg, setGranelKg] = useState<string>('1');
+  // Tara: peso del carro/recipiente que se descuenta de la pesada.
+  // taraSel: '' = sin carro, 'custom' = peso personalizado (carro prestado), o el id de un carro guardado.
+  const [carros, setCarros] = useState<Carro[]>([]);
+  const [taraSel, setTaraSel] = useState<string>('');
+  const [taraKg, setTaraKg] = useState<string>('');
+  const [nuevoCarroNombre, setNuevoCarroNombre] = useState('');
+  const [guardandoCarro, setGuardandoCarro] = useState(false);
+  const puedeEditarCarros = puede('actualizarProductos');
   const codigoInputRef = useRef<HTMLInputElement>(null);
   const busquedaTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  useEffect(() => {
+    getCarros()
+      .then((lista) => {
+        setCarros(lista);
+        // Recordar en esta caja el último carro guardado que se usó.
+        try {
+          const ultimo = localStorage.getItem('pos.carroId');
+          if (ultimo && lista.some((c) => c.id === ultimo)) setTaraSel(ultimo);
+        } catch {}
+      })
+      .catch(() => setCarros([]));
+  }, []);
+
+  const elegirTara = (valor: string) => {
+    setTaraSel(valor);
+    try {
+      if (valor && valor !== 'custom') localStorage.setItem('pos.carroId', valor);
+      else localStorage.removeItem('pos.carroId');
+    } catch {}
+  };
+
+  const guardarCarroPersonalizado = async () => {
+    const nombre = nuevoCarroNombre.trim();
+    const peso = parseFloat(taraKg) || 0;
+    if (!nombre) return alert('Escribe un nombre para el carro.');
+    if (peso <= 0) return alert('Escribe el peso del carro.');
+    setGuardandoCarro(true);
+    try {
+      const lista = await postCarro(nombre, peso);
+      setCarros(lista);
+      const nuevo = lista.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
+      if (nuevo) elegirTara(nuevo.id);
+      setNuevoCarroNombre('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al guardar el carro');
+    } finally {
+      setGuardandoCarro(false);
+    }
+  };
+
+  const eliminarCarro = async (c: Carro) => {
+    if (!confirm(`¿Eliminar el carro "${c.nombre}" (${c.pesoKg} kg)?`)) return;
+    try {
+      setCarros(await deleteCarro(c.id));
+      if (taraSel === c.id) elegirTara('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar el carro');
+    }
+  };
 
   useEffect(() => {
     Promise.all([getProductos(), getCategorias(), getClientes()])
@@ -286,6 +344,29 @@ export default function POSPage() {
     });
   };
 
+  const granelBruto = parseFloat(granelKg) || 0;
+  const carroSeleccionado = carros.find((c) => c.id === taraSel) || null;
+  const taraActiva = taraSel !== '';
+  const granelTara = carroSeleccionado
+    ? carroSeleccionado.pesoKg
+    : taraSel === 'custom'
+      ? Math.max(0, parseFloat(taraKg) || 0)
+      : 0;
+  const granelNeto = Math.round((granelBruto - granelTara) * 1000) / 1000;
+
+  const confirmarGranel = () => {
+    if (!productoGranelModal) return;
+    if (granelNeto <= 0) {
+      alert(granelTara > 0 ? 'El peso neto es 0 o negativo: la pesada debe ser mayor que el peso del carro.' : 'Ingresa un peso válido.');
+      return;
+    }
+    if (granelNeto > productoGranelModal.stock) {
+      alert(`Stock disponible: ${productoGranelModal.stock} kg`);
+      return;
+    }
+    agregarAlCarrito(productoGranelModal, productoGranelModal.precio, granelNeto);
+  };
+
   const irAlCarrito = () => document.getElementById('carrito-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
@@ -297,24 +378,91 @@ export default function POSPage() {
             <h3 className="text-lg font-semibold text-white mb-1">Venta por peso</h3>
             <p className="text-sm text-slate-400 mb-4">{productoGranelModal.nombre}</p>
             <p className="text-sm text-slate-300 mb-2">Precio: ${formatearMoneda(typeof productoGranelModal.precio === 'number' ? productoGranelModal.precio : Number(productoGranelModal.precio) || 0)}/kg · Stock: {productoGranelModal.stock} kg</p>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Peso (kg)</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">{taraActiva ? 'Peso en báscula (kg)' : 'Peso (kg)'}</label>
             <input
               type="number"
               min="0.01"
-              max={productoGranelModal.stock}
               step="0.01"
               value={granelKg}
+              autoFocus
               onChange={(e) => setGranelKg(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const kg = parseFloat(granelKg) || 0;
-                  if (kg > 0 && kg <= productoGranelModal.stock) {
-                    agregarAlCarrito(productoGranelModal, productoGranelModal.precio, kg);
-                  }
-                }
-              }}
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmarGranel(); }}
             />
+            <label className="block text-sm font-medium text-slate-300 mb-2">Descontar carro (tara)</label>
+            <div className="flex gap-2 mb-3">
+              <select
+                value={taraSel}
+                onChange={(e) => elegirTara(e.target.value)}
+                className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Sin carro</option>
+                {carros.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre} ({c.pesoKg} kg)</option>
+                ))}
+                <option value="custom">Otro peso (personalizado)…</option>
+              </select>
+              {carroSeleccionado && puedeEditarCarros && (
+                <button
+                  type="button"
+                  title="Eliminar este carro guardado"
+                  onClick={() => eliminarCarro(carroSeleccionado)}
+                  className="px-3 rounded-lg bg-slate-700 border border-slate-600 text-red-400 hover:bg-red-500/20"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {taraActiva && (
+              <div className="mb-3 rounded-lg border border-slate-600 bg-slate-900/40 p-3">
+                {taraSel === 'custom' && (
+                  <>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Peso del carro (kg)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={taraKg}
+                      placeholder="Ej. 2.5"
+                      onChange={(e) => setTaraKg(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') confirmarGranel(); }}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
+                    />
+                    {puedeEditarCarros && (
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={nuevoCarroNombre}
+                          maxLength={60}
+                          placeholder="Nombre para guardarlo (opcional)"
+                          onChange={(e) => setNuevoCarroNombre(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') guardarCarroPersonalizado(); }}
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <button
+                          type="button"
+                          disabled={guardandoCarro || !nuevoCarroNombre.trim()}
+                          onClick={guardarCarroPersonalizado}
+                          className="px-3 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-50 text-white text-sm font-medium"
+                        >
+                          Guardar carro
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="text-sm text-slate-300 space-y-0.5">
+                  <div className="flex justify-between"><span>Pesada</span><span>{granelBruto.toFixed(2)} kg</span></div>
+                  <div className="flex justify-between"><span>− Carro</span><span>{granelTara.toFixed(2)} kg</span></div>
+                  <div className={`flex justify-between font-semibold ${granelNeto > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <span>Peso neto</span><span>{granelNeto.toFixed(2)} kg</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <p className="text-sm text-slate-300 mb-4">
+              Importe: <span className="font-semibold text-white">${formatearMoneda(Math.max(0, granelNeto) * (Number(productoGranelModal.precio) || 0))}</span>
+            </p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -325,14 +473,7 @@ export default function POSPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const kg = parseFloat(granelKg) || 0;
-                  if (kg > 0 && kg <= productoGranelModal.stock) {
-                    agregarAlCarrito(productoGranelModal, productoGranelModal.precio, kg);
-                  } else {
-                    alert(kg <= 0 ? 'Ingresa un peso válido.' : `Stock disponible: ${productoGranelModal.stock} kg`);
-                  }
-                }}
+                onClick={confirmarGranel}
                 className="flex-1 py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold"
               >
                 Agregar
