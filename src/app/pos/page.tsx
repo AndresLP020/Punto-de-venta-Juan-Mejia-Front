@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getProductos, getProductoPorCodigo, getCategorias, postVenta, getClientes, getCarros, postCarro, deleteCarro, type Producto, type Cliente, type Carro } from '@/lib/api';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { imprimirTicket as abrirTicket } from '@/lib/ticketPrint';
+import { getBascula, CONFIG_BASCULA_DEFAULT, type ConfigBascula, type EstadoBascula } from '@/lib/bascula';
 
 type CarritoItem = {
   producto: Producto;
@@ -49,6 +50,11 @@ export default function POSPage() {
   const [montoPagado, setMontoPagado] = useState<string>('');
   const [productoGranelModal, setProductoGranelModal] = useState<Producto | null>(null);
   const [granelKg, setGranelKg] = useState<string>('1');
+  // Báscula conectada por USB/serial: llena el peso sola mientras la ventana de venta por peso está abierta.
+  const [bascula, setBascula] = useState<EstadoBascula | null>(null);
+  const [pesoManual, setPesoManual] = useState(false);
+  const [configBasculaAbierta, setConfigBasculaAbierta] = useState(false);
+  const [configBascula, setConfigBascula] = useState<ConfigBascula>(CONFIG_BASCULA_DEFAULT);
   // Tara: peso del carro/recipiente que se descuenta de la pesada.
   // taraSel: '' = sin carro, 'custom' = peso personalizado (carro prestado), o el id de un carro guardado.
   const [carros, setCarros] = useState<Carro[]>([]);
@@ -72,6 +78,38 @@ export default function POSPage() {
       })
       .catch(() => setCarros([]));
   }, []);
+
+  useEffect(() => {
+    const b = getBascula();
+    const quitar = b.suscribir((e) => {
+      setBascula(e);
+      setConfigBascula(e.config);
+    });
+    b.iniciarAutomatico().catch(() => {});
+    return quitar;
+  }, []);
+
+  const basculaConectada = Boolean(bascula?.conectada);
+  const granelAbierto = Boolean(productoGranelModal);
+
+  // Al abrir la ventana de peso con la báscula conectada, no dejar el "1" de ejemplo: se usa lo que marque.
+  useEffect(() => {
+    if (!granelAbierto) return;
+    setPesoManual(false);
+    if (basculaConectada) setGranelKg(bascula?.pesoKg != null ? String(bascula.pesoKg) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [granelAbierto, basculaConectada]);
+
+  // Cada lectura nueva de la báscula llena el campo, salvo que el cajero haya escrito el peso a mano.
+  useEffect(() => {
+    if (!granelAbierto || pesoManual || bascula?.pesoKg == null) return;
+    setGranelKg(String(bascula.pesoKg));
+  }, [bascula?.pesoKg, granelAbierto, pesoManual]);
+
+  const aplicarConfigBascula = async (c: ConfigBascula) => {
+    setConfigBascula(c);
+    await getBascula().reconfigurar(c);
+  };
 
   const elegirTara = (valor: string) => {
     setTaraSel(valor);
@@ -378,6 +416,100 @@ export default function POSPage() {
             <h3 className="text-lg font-semibold text-white mb-1">Venta por peso</h3>
             <p className="text-sm text-slate-400 mb-4">{productoGranelModal.nombre}</p>
             <p className="text-sm text-slate-300 mb-2">Precio: ${formatearMoneda(typeof productoGranelModal.precio === 'number' ? productoGranelModal.precio : Number(productoGranelModal.precio) || 0)}/kg · Stock: {productoGranelModal.stock} kg</p>
+            {/* Báscula */}
+            <div className="mb-3 rounded-lg border border-slate-600 bg-slate-900/40 p-2.5 text-sm">
+              {!bascula?.soportada ? (
+                <p className="text-xs text-slate-400">Para leer la báscula automáticamente abre el punto de venta en Google Chrome o Microsoft Edge.</p>
+              ) : basculaConectada ? (
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${bascula?.pesoKg == null ? 'bg-amber-400' : bascula.estable ? 'bg-green-400' : 'bg-amber-400 animate-pulse'}`} />
+                  <span className="text-slate-300 flex-1">
+                    {bascula?.detectando
+                      ? `Buscando la señal de la báscula (${bascula.config.baudRate})…`
+                      : bascula?.pesoKg == null
+                        ? 'Báscula conectada · esperando peso…'
+                        : bascula.estable
+                          ? 'Báscula · peso estable'
+                          : 'Báscula · estabilizando…'}
+                  </span>
+                  {pesoManual && (
+                    <button type="button" onClick={() => setPesoManual(false)} className="text-xs text-green-400 hover:underline">Usar báscula</button>
+                  )}
+                  <button type="button" title="Ajustes de la báscula" onClick={() => setConfigBasculaAbierta((v) => !v)} className="text-slate-400 hover:text-white px-1">⚙</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+                  <span className="text-slate-400 flex-1">Báscula no conectada</span>
+                  <button
+                    type="button"
+                    onClick={() => getBascula().conectar()}
+                    className="px-2.5 py-1 rounded-md bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 text-xs font-semibold"
+                  >
+                    Conectar báscula
+                  </button>
+                  <button type="button" title="Ajustes de la báscula" onClick={() => setConfigBasculaAbierta((v) => !v)} className="text-slate-400 hover:text-white px-1">⚙</button>
+                </div>
+              )}
+              {bascula?.error && <p className="text-xs text-red-400 mt-1.5">{bascula.error}</p>}
+              {bascula?.error?.includes('permiso') && (
+                <p className="text-xs text-slate-400 mt-1">
+                  En Linux ejecuta una vez en la terminal: <code className="text-slate-300">sudo usermod -aG uucp $USER</code> (o <code className="text-slate-300">dialout</code> en Ubuntu) y vuelve a iniciar sesión. En Windows instala el controlador de la báscula (Prolific / CH340).
+                </p>
+              )}
+              {configBasculaAbierta && bascula?.soportada && (
+                <div className="mt-2 pt-2 border-t border-slate-700 grid grid-cols-2 gap-2 text-xs">
+                  <label className="text-slate-400">
+                    Velocidad (baudios)
+                    <select
+                      value={configBascula.baudRate}
+                      onChange={(e) => aplicarConfigBascula({ ...configBascula, baudRate: Number(e.target.value) })}
+                      className="mt-0.5 w-full rounded bg-slate-700 border border-slate-600 px-2 py-1 text-white"
+                    >
+                      {[1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-slate-400">
+                    Cómo envía el peso
+                    <select
+                      value={['', 'P', 'W', '$'].includes(configBascula.comando) ? configBascula.comando : 'P'}
+                      onChange={(e) => aplicarConfigBascula({ ...configBascula, comando: e.target.value })}
+                      className="mt-0.5 w-full rounded bg-slate-700 border border-slate-600 px-2 py-1 text-white"
+                    >
+                      <option value="P">Pedir con &quot;P&quot; (Torrey y similares)</option>
+                      <option value="W">Pedir con &quot;W&quot;</option>
+                      <option value="$">Pedir con &quot;$&quot;</option>
+                      <option value="">Lo envía sola (continuo)</option>
+                    </select>
+                  </label>
+                  <label className="text-slate-400">
+                    Bits / paridad
+                    <select
+                      value={`${configBascula.dataBits}${configBascula.parity[0]}`}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        aplicarConfigBascula({ ...configBascula, dataBits: v[0] === '7' ? 7 : 8, parity: v[1] === 'e' ? 'even' : v[1] === 'o' ? 'odd' : 'none' });
+                      }}
+                      className="mt-0.5 w-full rounded bg-slate-700 border border-slate-600 px-2 py-1 text-white"
+                    >
+                      <option value="8n">8 bits, sin paridad</option>
+                      <option value="7e">7 bits, paridad par</option>
+                      <option value="7o">7 bits, paridad impar</option>
+                    </select>
+                  </label>
+                  <div className="text-slate-400">
+                    Última señal
+                    <div className="mt-0.5 rounded bg-slate-900 border border-slate-700 px-2 py-1 font-mono text-slate-300 truncate" title={bascula?.crudo}>{bascula?.crudo || '—'}</div>
+                  </div>
+                  <div className="col-span-2 flex justify-between">
+                    <button type="button" onClick={() => getBascula().detectarDeNuevo()} className="text-green-400 hover:underline">Detectar automáticamente</button>
+                    {basculaConectada && (
+                      <button type="button" onClick={() => getBascula().desactivar()} className="text-red-400 hover:underline">Desconectar báscula</button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <label className="block text-sm font-medium text-slate-300 mb-2">{taraActiva ? 'Peso en báscula (kg)' : 'Peso (kg)'}</label>
             <input
               type="number"
@@ -385,7 +517,8 @@ export default function POSPage() {
               step="0.01"
               value={granelKg}
               autoFocus
-              onChange={(e) => setGranelKg(e.target.value)}
+              onChange={(e) => { setGranelKg(e.target.value); setPesoManual(true); }}
+              placeholder={basculaConectada ? 'Esperando báscula…' : undefined}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
               onKeyDown={(e) => { if (e.key === 'Enter') confirmarGranel(); }}
             />
