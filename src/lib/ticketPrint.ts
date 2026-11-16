@@ -35,11 +35,11 @@ export function anchoImprimibleMm(papel: AnchoPapel): number {
 /** Ancho con el que se está armando el ticket actual (lo fija textoTicket). */
 let ANCHO = 42;
 
-/** CSS del ticket según el ancho de papel; agrega el estilo del logo solo si hay logo. */
+/** CSS del ticket. Con papel de 80 mm y sin logo es idéntico al de siempre. */
 function ticketCss(papel: AnchoPapel, conLogo: boolean): string {
   const css = TICKET_CSS_80.replace('size: 80mm auto', `size: ${papel}mm auto`)
     .replace('width: 72mm', `width: ${anchoImprimibleMm(papel)}mm`)
-    .replace(/width: 42ch/g, `width: ${caracteresPorLinea(papel)}ch`);
+    .replace('width: 42ch', `width: ${caracteresPorLinea(papel)}ch`);
   if (!conLogo) return css;
   return (
     css +
@@ -59,7 +59,7 @@ const TICKET_CSS_80 = `
   * {
     margin: 0;
     padding: 0;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
     text-shadow: none !important;
     box-shadow: none !important;
     background: #fff !important;
@@ -77,20 +77,10 @@ const TICKET_CSS_80 = `
   pre {
     font-family: "Courier New", Courier, monospace;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: pre-wrap;
     word-break: break-word;
     width: 42ch;
-  }
-  /* Trazo extra para que las letras salgan más oscuras en la térmica. */
-  pre, .pagare-texto { -webkit-text-stroke: 0.25px #000; }
-  /* Párrafo "Debo y pagare..." en letra más chica; mismo ancho que el resto del ticket. */
-  /* El margen reemplaza el renglón en blanco de antes y después, que el <pre> no muestra en sus bordes. */
-  .pagare-texto { width: 42ch; margin: 13.75px 0 !important; }
-  .pagare-texto p {
-    font-size: 9.5px;
-    line-height: 1.25;
-    white-space: normal;
   }
 `;
 
@@ -197,45 +187,6 @@ function parrafo(texto: string): string[] {
   return out;
 }
 
-/**
- * Marcas (renglones con caracteres de control) que encierran el texto que se imprime con letra más chica
- * en la vista HTML. En la impresión directa se quitan con textoPlano().
- */
-const MARCA_INICIO_CHICA = '\u0001';
-const MARCA_FIN_CHICA = '\u0002';
-
-/** Texto del ticket sin las marcas internas (lo que se manda a la impresora directa). */
-export function textoPlano(texto: string): string {
-  return texto
-    .split('\n')
-    .filter((l) => l !== MARCA_INICIO_CHICA && l !== MARCA_FIN_CHICA)
-    .join('\n');
-}
-
-/** Cuerpo HTML: renglones en <pre> y los bloques marcados como párrafo de letra chica. */
-function cuerpoHtml(texto: string): string {
-  const partes: string[] = [];
-  let pre: string[] = [];
-  let chica: string[] | null = null;
-  const cerrarPre = () => {
-    if (pre.length) partes.push(`<pre>${escapeHtml(pre.join('\n'))}</pre>`);
-    pre = [];
-  };
-  for (const l of texto.split('\n')) {
-    if (l === MARCA_INICIO_CHICA) {
-      cerrarPre();
-      chica = [];
-    } else if (l === MARCA_FIN_CHICA && chica) {
-      partes.push(`<div class="pagare-texto"><p>${escapeHtml(chica.join(' '))}</p></div>`);
-      chica = null;
-    } else if (chica) chica.push(l);
-    else pre.push(l);
-  }
-  if (chica) pre.push(...chica);
-  cerrarPre();
-  return partes.join('\n');
-}
-
 /** Línea para llenar a mano. */
 function raya(n: number): string {
   return '_'.repeat(Math.max(4, n));
@@ -254,13 +205,11 @@ function lineasPagare(d: TicketDatos, pendiente: number): string[] {
   l.push(`a ${fecha}.`);
   l.push('');
   l.push(
-    MARCA_INICIO_CHICA,
     ...parrafo(
       `Debo y pagare incondicionalmente, a la vista, por este pagare a la orden de ${BENEFICIARIO_PAGARE}, ` +
         `en el lugar arriba indicado, la cantidad de ${monto} (${importeEnLetras(pendiente)}), ` +
         'valor recibido en mercancia a mi entera satisfaccion.'
-    ),
-    MARCA_FIN_CHICA
+    )
   );
   l.push('');
   l.push(linea('Total de la compra:', `$${formatearMoneda(d.total)}`));
@@ -369,156 +318,19 @@ export function logoParaTicket(c: ConfigTicket | null): string | null {
   return src || null;
 }
 
-// ---------------------------------------------------------------------------
-// Texto como imagen de 1 bit
-//
-// Windows imprime el texto del navegador con bordes suavizados (grises) y el controlador de la térmica
-// los convierte en puntos sueltos: la letra sale clara aunque sea negrita. Para que salga igual de negra
-// que el logo, el texto se dibuja en un canvas a la resolución de la impresora (8 puntos/mm) y se deja
-// en blanco y negro puro, sin grises.
-// ---------------------------------------------------------------------------
-
-/** Puntos de ancho de la cabeza térmica: 576 en 80 mm y 384 en 58 mm. */
-export function puntosPorLinea(papel: AnchoPapel): number {
-  return papel === 58 ? 384 : 576;
-}
-
-const FUENTE_TICKET = '"Courier New", Courier, "Liberation Mono", "DejaVu Sans Mono", monospace';
-/** Proporción de la letra del párrafo del pagaré respecto al resto (9.5 / 11). */
-const ESCALA_CHICA = 9.5 / 11;
-/** Nivel de gris (0-255) por debajo del cual un punto se imprime negro. Más alto = letra más gruesa. */
-const UMBRAL_NEGRO = 150;
-
-/** Parte un párrafo en renglones que quepan en `ancho` píxeles. */
-function envolver(ctx: CanvasRenderingContext2D, texto: string, ancho: number): string[] {
-  const out: string[] = [];
-  let actual = '';
-  for (const palabra of texto.split(/\s+/).filter(Boolean)) {
-    const prueba = actual ? actual + ' ' + palabra : palabra;
-    if (!actual || ctx.measureText(prueba).width <= ancho) actual = prueba;
-    else {
-      out.push(actual);
-      actual = palabra;
-    }
-  }
-  if (actual) out.push(actual);
-  return out;
-}
-
-/**
- * Dibuja el texto del ticket como PNG de blanco y negro puro (data URL), o null si no hay navegador.
- * Respeta el ancho en caracteres del ticket y el párrafo de letra chica del pagaré.
- */
-export function textoComoImagen(texto: string, papel: AnchoPapel): string | null {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-  const anchoPx = puntosPorLinea(papel);
-  const columnas = caracteresPorLinea(papel);
-
-  // Tamaño de letra para que `columnas` caracteres llenen exactamente el ancho de la cabeza.
-  ctx.font = `bold 100px ${FUENTE_TICKET}`;
-  const anchoCaracter100 = ctx.measureText('M'.repeat(20)).width / 20;
-  const tam = Math.floor(((100 * anchoPx) / (columnas * anchoCaracter100)) * 100) / 100;
-  const tamChico = tam * ESCALA_CHICA;
-  const fuente = `bold ${tam}px ${FUENTE_TICKET}`;
-  const fuenteChica = `bold ${tamChico}px ${FUENTE_TICKET}`;
-  const alto = Math.round(tam * 1.25);
-  const altoChico = Math.round(tamChico * 1.25);
-
-  // Renglones a dibujar (los del párrafo chico se vuelven a partir según el ancho real).
-  const renglones: { t: string; chico: boolean }[] = [];
-  let bloque: string[] | null = null;
-  for (const l of texto.split('\n')) {
-    if (l === MARCA_INICIO_CHICA) bloque = [];
-    else if (l === MARCA_FIN_CHICA && bloque) {
-      ctx.font = fuenteChica;
-      for (const r of envolver(ctx, bloque.join(' '), anchoPx)) renglones.push({ t: r, chico: true });
-      bloque = null;
-    } else if (bloque) bloque.push(l);
-    else renglones.push({ t: l, chico: false });
-  }
-  if (bloque) bloque.forEach((t) => renglones.push({ t, chico: false }));
-
-  canvas.width = anchoPx;
-  canvas.height = Math.max(1, renglones.reduce((h, r) => h + (r.chico ? altoChico : alto), 0));
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#000';
-  ctx.strokeStyle = '#000';
-  ctx.textBaseline = 'top';
-  ctx.lineJoin = 'round';
-  let y = 0;
-  for (const r of renglones) {
-    const h = r.chico ? altoChico : alto;
-    if (r.t.trim()) {
-      ctx.font = r.chico ? fuenteChica : fuente;
-      ctx.lineWidth = Math.max(1, (r.chico ? tamChico : tam) * 0.035); // engrosa el trazo como el del logo
-      const yTexto = y + (h - (r.chico ? tamChico : tam)) / 2;
-      ctx.fillText(r.t, 0, yTexto);
-      ctx.strokeText(r.t, 0, yTexto);
-    }
-    y += h;
-  }
-
-  // Blanco y negro puro: sin grises que el controlador de la impresora convierta en puntos claros.
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const px = img.data;
-  for (let i = 0; i < px.length; i += 4) {
-    const v = px[i] < UMBRAL_NEGRO ? 0 : 255;
-    px[i] = px[i + 1] = px[i + 2] = v;
-    px[i + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas.toDataURL('image/png');
-}
-
-/**
- * Documento HTML del ticket (con el logo al inicio si se indica).
- * Con `textoImagen` el texto va como imagen de 1 bit (lo que se imprime); sin ella, como texto.
- */
-export function htmlTicket(
-  titulo: string,
-  texto: string,
-  papel: AnchoPapel = 80,
-  logo: string | null = null,
-  textoImagen: string | null = null
-): string {
-  const cuerpo = textoImagen
-    ? `<img class="texto" src="${escapeHtml(textoImagen)}" alt="${escapeHtml(textoPlano(texto))}">`
-    : cuerpoHtml(texto);
-  const cssImagen = textoImagen
-    ? `  img.texto {
-    display: block;
-    width: ${anchoImprimibleMm(papel)}mm;
-    height: auto;
-    image-rendering: pixelated;
-  }
-`
-    : '';
+/** Documento HTML del ticket. Sin logo y en 80 mm es idéntico al de siempre. */
+export function htmlTicket(titulo: string, texto: string, papel: AnchoPapel = 80, logo: string | null = null): string {
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(titulo)}</title>
-  <style>${ticketCss(papel, Boolean(logo))}${cssImagen}</style>
+  <style>${ticketCss(papel, Boolean(logo))}</style>
 </head>
 <body>
-${logo ? `<img class="logo" src="${escapeHtml(logo)}" alt="">\n` : ''}${cuerpo}
+${logo ? `<img class="logo" src="${escapeHtml(logo)}" alt="">\n` : ''}<pre>${escapeHtml(texto)}</pre>
 </body>
 </html>`;
-}
-
-/** HTML listo para imprimir: el texto como imagen de 1 bit (si el navegador puede dibujarla). */
-export function htmlTicketImpresion(titulo: string, texto: string, papel: AnchoPapel, logo: string | null): string {
-  let imagen: string | null = null;
-  try {
-    imagen = textoComoImagen(texto, papel);
-  } catch {
-    // Si el canvas falla, se imprime como texto normal.
-  }
-  return htmlTicket(titulo, texto, papel, logo, imagen);
 }
 
 async function enviarAImpresoraLocal(texto: string): Promise<boolean> {
@@ -541,12 +353,18 @@ function abrirVistaImpresion(titulo: string, texto: string, papel: AnchoPapel, l
     return;
   }
   ventana.document.open();
-  ventana.document.write(htmlTicketImpresion(titulo, texto, papel, logo));
+  ventana.document.write(htmlTicket(titulo, texto, papel, logo));
   ventana.document.close();
   const lanzar = async () => {
-    // Esperar a que el logo y el texto estén decodificados para que nunca salga el ticket incompleto.
-    const imgs = Array.from(ventana.document.querySelectorAll('img')) as HTMLImageElement[];
-    await Promise.all(imgs.map((img) => img.decode().catch(() => undefined)));
+    // Esperar a que el logo esté decodificado para que nunca salga el ticket sin él.
+    const img = ventana.document.querySelector('img.logo') as HTMLImageElement | null;
+    if (img) {
+      try {
+        await img.decode();
+      } catch {
+        // Si la imagen falla, se imprime igual el ticket.
+      }
+    }
     ventana.focus();
     ventana.print();
     ventana.close();
@@ -583,7 +401,7 @@ export function imprimirTicket(d: TicketDatos, config?: ConfigTicket): void {
     const papel: AnchoPapel = c?.anchoPapel === 58 ? 58 : 80;
     const logo = logoParaTicket(c);
     const texto = textoTicket(d, papel);
-    return enviarAImpresoraLocal(textoPlano(texto))
+    return enviarAImpresoraLocal(texto)
       .then((ok) => {
         if (!ok) abrirVistaImpresion(titulo, texto, papel, logo);
       })

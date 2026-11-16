@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getConfigTicket, putConfigTicket, type ConfigTicket } from '@/lib/api';
 import {
-  htmlTicketImpresion,
+  htmlTicket,
   imprimirTicket,
   logoParaTicket,
   setConfigTicket,
@@ -56,7 +56,7 @@ export default function ConfigTicketSection() {
   const cambios = guardada != null && JSON.stringify(guardada) !== JSON.stringify(form);
 
   const vistaPrevia = useMemo(
-    () => htmlTicketImpresion('Vista previa', textoTicket(TICKET_PRUEBA, form.anchoPapel), form.anchoPapel, logoParaTicket(form)),
+    () => htmlTicket('Vista previa', textoTicket(TICKET_PRUEBA, form.anchoPapel), form.anchoPapel, logoParaTicket(form)),
     [form]
   );
 

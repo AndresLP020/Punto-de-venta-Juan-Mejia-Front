@@ -1,6 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { htmlTicket, logoParaTicket, textoTicket, textoPlano, importeEnLetras, TICKET_PRUEBA } from './ticketPrint';
+import { htmlTicket, logoParaTicket, textoTicket, importeEnLetras, TICKET_PRUEBA } from './ticketPrint';
+import { escapeHtml } from './utils';
 import type { ConfigTicket } from './api';
+
+/** HTML del ticket tal como se generaba antes de agregar el logo (80 mm). */
+function htmlAnterior(titulo: string, texto: string): string {
+  const css = `
+  @page { size: 80mm auto; margin: 0; }
+  * {
+    margin: 0;
+    padding: 0;
+    font-weight: 400 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  html, body {
+    width: 72mm;
+    margin: 0;
+    background: #fff !important;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  body { padding: 2mm 2mm 28mm; }
+  pre {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    font-weight: 400;
+    white-space: pre-wrap;
+    word-break: break-word;
+    width: 42ch;
+  }
+`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(titulo)}</title>
+  <style>${css}</style>
+</head>
+<body>
+<pre>${escapeHtml(texto)}</pre>
+</body>
+</html>`;
+}
 
 const LOGO = 'data:image/png;base64,iVBORw0KGgo=';
 const config = (c: Partial<ConfigTicket>): ConfigTicket => ({
@@ -30,39 +75,15 @@ describe('logo del ticket', () => {
     expect(html).toContain('width: 48mm');
   });
 
-  it('sin logo o con el interruptor apagado no se agrega imagen ni espacio extra', () => {
+  it('sin logo o con el interruptor apagado el resultado es idéntico al de antes', () => {
     const texto = textoTicket(TICKET_PRUEBA, 80);
-    const sinLogo = htmlTicket('Ticket de venta', texto, 80, null);
+    const antes = htmlAnterior('Ticket de venta', texto);
     expect(logoParaTicket(config({ mostrarLogo: false }))).toBeNull();
     expect(logoParaTicket(config({ ticketLogo80: '' }))).toBeNull();
     expect(logoParaTicket(null)).toBeNull();
-    expect(htmlTicket('Ticket de venta', texto, 80, logoParaTicket(config({ mostrarLogo: false })))).toBe(sinLogo);
-    expect(sinLogo).not.toContain('<img');
-    expect(sinLogo).not.toContain('img.logo');
-    expect(sinLogo).toMatch(/<body>\n<pre>/);
-  });
-});
-
-describe('formato', () => {
-  it('las letras van en negrita', () => {
-    const html = htmlTicket('T', textoTicket(TICKET_PRUEBA, 80), 80, null);
-    expect(html).toContain('font-weight: 700 !important');
-    expect(html).not.toContain('font-weight: 400');
-  });
-
-  it('el parrafo "Debo y pagare" va aparte con letra mas chica', () => {
-    const html = htmlTicket('T', textoTicket(TICKET_PRUEBA, 80), 80, null);
-    expect(html).toMatch(/<div class="pagare-texto"><p>Debo y pagare incondicionalmente[^<]*satisfaccion\.<\/p><\/div>/);
-    expect(html).toContain('font-size: 9.5px');
-    // El resto del pagaré sigue en el bloque normal.
-    expect(html).toMatch(/<pre>[^<]*P A G A R E/);
-    expect(html).toMatch(/<pre>[^<]*Total de la compra/);
-  });
-
-  it('la impresion directa recibe el texto sin marcas internas', () => {
-    const plano = textoPlano(textoTicket(TICKET_PRUEBA, 80));
-    expect(plano).not.toMatch(/[\u0001\u0002]/);
-    expect(plano).toContain('Debo y pagare incondicionalmente');
+    expect(htmlTicket('Ticket de venta', texto, 80, logoParaTicket(config({ mostrarLogo: false })))).toBe(antes);
+    expect(htmlTicket('Ticket de venta', texto, 80, logoParaTicket(config({ ticketLogo80: '' })))).toBe(antes);
+    expect(htmlTicket('Ticket de venta', texto, 80, null)).toBe(antes);
   });
 });
 
