@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { getProductos, getCategorias, getProveedores, postCategoria, deleteCategoria, postProducto, putProducto, deleteProducto, type Producto, type Proveedor } from '@/lib/api';
+import { getProductos, getCategorias, getProveedores, postCategoria, deleteCategoria, postProducto, putProducto, deleteProducto, surtirProducto, type Producto, type Proveedor } from '@/lib/api';
 import { formatearMoneda, formatearCantidad } from '@/lib/utils';
 import { useAdminMode } from '@/contexts/AdminModeContext';
 import { aCSV, descargarCSV, leerCSV } from '@/lib/csv';
@@ -51,6 +51,12 @@ export default function ProductosPage() {
   const [error, setError] = useState('');
   const [nuevaCategoria, setNuevaCategoria] = useState('');
   const [creandoCategoria, setCreandoCategoria] = useState(false);
+  // Surtir: sumar lo comprado al stock y actualizar el precio de compra si cambió.
+  const [surtiendo, setSurtiendo] = useState<Producto | null>(null);
+  const [surtirCantidad, setSurtirCantidad] = useState('');
+  const [surtirCosto, setSurtirCosto] = useState('');
+  const [surtirGuardando, setSurtirGuardando] = useState(false);
+  const [surtirError, setSurtirError] = useState('');
 
   const cargarDatos = useCallback(() => {
     setLoading(true);
@@ -95,6 +101,35 @@ export default function ProductosPage() {
     });
     setError('');
     setModalAbierto(true);
+  };
+
+  const abrirSurtir = (p: Producto) => {
+    setSurtiendo(p);
+    setSurtirCantidad('');
+    setSurtirCosto(p.costo != null ? String(redondearPrecio(p.costo)) : '');
+    setSurtirError('');
+  };
+
+  const confirmarSurtir = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!surtiendo) return;
+    const cantidad = parseFloat(surtirCantidad);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) return setSurtirError('Escribe cuánto compraste.');
+    if (!surtiendo.esGranel && !Number.isInteger(cantidad)) return setSurtirError('La cantidad debe ser en piezas enteras.');
+    const costoTxt = surtirCosto.trim();
+    const costo = costoTxt === '' ? undefined : parseFloat(costoTxt);
+    if (costo != null && (!Number.isFinite(costo) || costo < 0)) return setSurtirError('El precio de compra no es válido.');
+    setSurtirGuardando(true);
+    setSurtirError('');
+    try {
+      const actualizado = await surtirProducto(surtiendo.id, cantidad, costo);
+      setProductos((prev) => prev.map((x) => (x.id === actualizado.id ? actualizado : x)));
+      setSurtiendo(null);
+    } catch (err) {
+      setSurtirError(err instanceof Error ? err.message : 'Error al surtir el producto');
+    } finally {
+      setSurtirGuardando(false);
+    }
   };
 
   const cerrarModal = () => {
@@ -613,6 +648,15 @@ export default function ProductosPage() {
                         {puedeGestionar && (
                           <td className="py-4 px-6">
                             <div className="flex items-center justify-end gap-2">
+                              {puedeEditar && (
+                              <button
+                                onClick={() => abrirSurtir(p)}
+                                className="px-2 py-1 rounded text-xs font-semibold bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition"
+                                title="Sumar lo que compraste al stock"
+                              >
+                                + Surtir
+                              </button>
+                              )}
                               {(puedeEditar || puedeBaja) && (
                               <button
                                 onClick={() => abrirModalEditar(p)}
@@ -709,6 +753,14 @@ export default function ProductosPage() {
 
                   {puedeGestionar && (
                     <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-700">
+                      {puedeEditar && (
+                      <button
+                        onClick={() => abrirSurtir(p)}
+                        className="mr-auto px-3 py-2 rounded-lg bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition text-sm font-semibold"
+                      >
+                        + Surtir
+                      </button>
+                      )}
                       {(puedeEditar || puedeBaja) && (
                       <button
                         onClick={() => abrirModalEditar(p)}
@@ -733,6 +785,87 @@ export default function ProductosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Surtir producto */}
+      {surtiendo && (() => {
+        const p = surtiendo;
+        const unidad = p.esGranel ? ' kg' : '';
+        const dec = p.esGranel ? 2 : 0;
+        const actual = typeof p.stock === 'number' ? p.stock : 0;
+        const cant = parseFloat(surtirCantidad);
+        const cantValida = Number.isFinite(cant) && cant > 0;
+        const total = Math.round((actual + (cantValida ? cant : 0)) * 1000) / 1000;
+        const costoNuevo = surtirCosto.trim() === '' ? null : parseFloat(surtirCosto);
+        const costoCambio = costoNuevo != null && Number.isFinite(costoNuevo) && redondearPrecio(costoNuevo) !== redondearPrecio(p.costo ?? 0);
+        const pierde = costoNuevo != null && Number.isFinite(costoNuevo) && costoNuevo >= p.precio;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSurtiendo(null)}>
+            <form
+              onSubmit={confirmarSurtir}
+              className="bg-slate-800 rounded-2xl border border-slate-700 shadow-elevated-lg w-full max-w-sm p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold text-white">Surtir producto</h2>
+              <p className="text-sm text-slate-400 mb-4">{p.nombre}</p>
+
+              <div className="flex justify-between text-sm text-slate-300 mb-3">
+                <span>Tienes ahora</span>
+                <span className="font-semibold text-white">{formatearCantidad(actual, dec)}{unidad}</span>
+              </div>
+
+              <label className="block text-slate-400 text-sm font-medium mb-1">¿Cuánto compraste?{p.esGranel ? ' (kg)' : ' (piezas)'}</label>
+              <input
+                type="number"
+                min={p.esGranel ? '0.01' : '1'}
+                step={p.esGranel ? '0.01' : '1'}
+                autoFocus
+                value={surtirCantidad}
+                onChange={(e) => setSurtirCantidad(e.target.value)}
+                placeholder={p.esGranel ? 'Ej. 25.5' : 'Ej. 20'}
+                className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none mb-3"
+              />
+
+              <label className="block text-slate-400 text-sm font-medium mb-1">Precio de compra{p.esGranel ? ' por kg' : ' por pieza'}</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={surtirCosto}
+                onChange={(e) => setSurtirCosto(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-xl bg-slate-700 border border-slate-600 px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none"
+              />
+              <p className="text-xs text-slate-500 mt-1 mb-3">
+                {p.costo != null ? `Antes: $${formatearMoneda(redondearPrecio(p.costo))}. ` : ''}Déjalo igual si no cambió.
+              </p>
+              {costoCambio && !pierde && (
+                <p className="text-xs text-amber-400 mb-3">El precio de compra cambia. Revisa si también quieres subir el precio de venta (${formatearMoneda(redondearPrecio(p.precio))}) con Editar.</p>
+              )}
+              {pierde && (
+                <p className="text-xs text-red-400 mb-3">Ojo: el precio de compra es igual o mayor al de venta (${formatearMoneda(redondearPrecio(p.precio))}). Ajusta el precio de venta con Editar.</p>
+              )}
+
+              <div className="rounded-xl bg-slate-900/50 border border-slate-700 p-3 mb-4 flex justify-between text-sm">
+                <span className="text-slate-300">Quedarás con</span>
+                <span className="font-bold text-green-400">{formatearCantidad(total, dec)}{unidad}</span>
+              </div>
+              {(p.estado || 'Activo') !== 'Activo' && (
+                <p className="text-xs text-amber-400 mb-3">Este producto está Inactivo: para venderlo, reactívalo con Editar.</p>
+              )}
+              {surtirError && <p className="text-sm text-red-400 mb-3">{surtirError}</p>}
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setSurtiendo(null)} className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={surtirGuardando || !cantValida} className="flex-1 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-semibold">
+                  {surtirGuardando ? 'Guardando…' : 'Surtir'}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      })()}
 
       {/* Modal Agregar / Editar producto */}
       {modalAbierto && (

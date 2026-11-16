@@ -164,13 +164,17 @@ export const postCarro = (nombre: string, pesoKg: number) => send<Carro[]>('POST
 
 export const deleteCarro = (id: string) => send<Carro[]>('DELETE', `/api/carros/${encodeURIComponent(id)}`, undefined, 'Error al eliminar el carro');
 
-export const getProductoPorCodigo =(codigo: string) => get(`/api/productos/codigo/${encodeURIComponent(codigo)}`, 'Producto no encontrado');
+export const getProductoPorCodigo = (codigo: string) => get(`/api/productos/codigo/${encodeURIComponent(codigo)}`, 'Producto no encontrado');
 
 export const postProducto = (body: { nombre: string; codigo?: string; categoria: string; precio: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number }) =>
   send('POST', '/api/productos', body, 'Error al crear producto');
 
 export const putProducto = (id: number, body: { nombre?: string; codigo?: string; categoria?: string; precio?: number; costo?: number; stock?: number; stockMinimo?: number; estado?: string; esGranel?: boolean; proveedorId?: number | null }) =>
   send('PUT', `/api/productos/${id}`, body, 'Error al actualizar producto');
+
+/** Suma lo comprado al stock actual y, opcionalmente, actualiza el precio de compra (costo). */
+export const surtirProducto = (id: number, cantidad: number, costo?: number) =>
+  send<Producto>('POST', `/api/productos/${id}/surtir`, { cantidad, ...(costo != null ? { costo } : {}) }, 'Error al surtir el producto');
 
 export const deleteProducto = (id: number) => send<void>('DELETE', `/api/productos/${id}`, undefined, 'Error al eliminar producto');
 
